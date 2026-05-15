@@ -1,0 +1,119 @@
+.bus-container {
+  background: #1e293b;
+  padding: 20px;
+  border-radius: 12px;
+  border: 1px solid #334155;
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 15px;
+}
+
+.bus-front {
+  width: 100%;
+  max-width: 300px;
+  height: 40px;
+  background: #334155;
+  border-radius: 20px 20px 5px 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  color: #94a3b8;
+  font-weight: bold;
+  border-bottom: 3px solid #10b981;
+}
+
+.seats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  padding: 10px;
+}
+
+/* VIP 30 uses 3 columns (2+1 layout) */
+.bus-container.vip-30 .seats-grid {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+/* Add an aisle in the middle */
+.bus-container:not(.vip-30) .seats-grid button:nth-child(4n-2) {
+  margin-right: 20px;
+}
+
+.bus-container.vip-30 .seats-grid button:nth-child(3n-1) {
+  margin-right: 20px;
+}
+
+.seat {
+  width: 45px;
+  height: 45px;
+  border-radius: 8px;
+  border: 2px solid #475569;
+  background: #334155;
+  color: #f8fafc;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.seat:hover:not(:disabled) {
+  border-color: #3b82f6;
+  background: #1e293b;
+  transform: translateY(-2px);
+}
+
+.seat.selected {
+  background: #3b82f6;
+  border-color: #60a5fa;
+  box-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
+}
+
+.seat.occupied {
+  background: #ef4444;
+  border-color: #f87171;
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.seat:disabled {
+  cursor: not-allowed;
+}
+
+.bus-legend {
+  display: flex;
+  gap: 20px;
+  margin-top: 10px;
+  font-size: 13px;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #94a3b8;
+}
+
+.box {
+  width: 15px;
+  height: 15px;
+  border-radius: 3px;
+}
+
+.box.available { background: #334155; border: 1px solid #475569; }
+.box.selected { background: #3b82f6; }
+.box.occupied { background: #ef4444; }
+
+.bus-selector-warning {
+  padding: 20px;
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  color: #fbbf24;
+  border-radius: 8px;
+  text-align: center;
+  font-weight: bold;
+}

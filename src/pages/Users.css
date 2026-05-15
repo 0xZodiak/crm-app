@@ -1,0 +1,327 @@
+.users-page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.section-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: rgba(255,255,255,0.85);
+  margin: 0 0 16px;
+}
+
+/* Summary cards */
+.users-summary {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.summary-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 24px;
+  border-radius: 14px;
+  border: 1px solid;
+  flex: 1;
+  min-width: 160px;
+}
+
+.summary-icon { font-size: 28px; }
+.summary-count { font-size: 28px; font-weight: 900; }
+.summary-label { font-size: 12px; color: rgba(255,255,255,0.5); }
+
+/* Team section */
+.team-section {
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+/* TL header */
+.tl-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px 22px;
+  background: rgba(99,102,241,0.08);
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+
+.tl-avatar-lg {
+  width: 52px; height: 52px;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  font-weight: 700;
+  color: white;
+  flex-shrink: 0;
+}
+
+.tl-header-info { flex: 1; }
+.tl-header-name { font-size: 17px; font-weight: 800; color: white; }
+.tl-header-role { font-size: 12px; font-weight: 600; margin: 2px 0; }
+.tl-header-contact { font-size: 12px; color: rgba(255,255,255,0.4); }
+
+.tl-header-stats {
+  display: flex;
+  gap: 20px;
+  flex-shrink: 0;
+}
+
+.tl-stat-block { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.tl-stat-n { font-size: 22px; font-weight: 900; color: white; }
+.tl-stat-l { font-size: 11px; color: rgba(255,255,255,0.4); }
+
+/* Team agents grid */
+.team-agents-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+  padding: 20px;
+}
+
+.agent-perf-card {
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 16px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.apc-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.apc-avatar {
+  width: 44px; height: 44px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: 700;
+  color: white;
+  flex-shrink: 0;
+}
+
+.apc-info { flex: 1; }
+.apc-name { font-size: 15px; font-weight: 800; color: white; margin-bottom: 4px; }
+.apc-tag {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 6px;
+  border: 1px solid;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.apc-bookings {
+  font-size: 24px;
+  font-weight: 900;
+}
+
+.apc-prog-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: rgba(255,255,255,0.4);
+  margin-bottom: 6px;
+}
+
+.apc-prog-track {
+  height: 6px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.apc-prog-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.5s ease;
+}
+
+.apc-stats {
+  display: flex;
+  justify-content: space-between;
+  background: rgba(0,0,0,0.15);
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin-top: 4px;
+}
+
+.apc-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  font-size: 11px;
+  color: rgba(255,255,255,0.4);
+}
+.apc-stat span:first-child { font-size: 15px; font-weight: 800; color: white; }
+
+.apc-comm-badge {
+  background: rgba(34,197,94,0.1);
+  border: 1px solid rgba(34,197,94,0.2);
+  color: #4ade80;
+  padding: 8px;
+  border-radius: 8px;
+  font-size: 12px;
+  text-align: center;
+}
+
+.no-agents {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 20px;
+  color: rgba(255,255,255,0.4);
+  font-size: 13px;
+}
+
+code {
+  background: rgba(255,255,255,0.07);
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-family: monospace;
+  color: #a5b4fc;
+  font-size: 12px;
+}
+
+/* Credentials guide */
+.creds-guide {
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 16px;
+  padding: 20px;
+}
+
+.creds-table-wrap {
+  overflow-x: auto;
+}
+
+.creds-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 500px;
+}
+
+.creds-table th {
+  padding: 10px 14px;
+  text-align: right;
+  font-size: 12px;
+  font-weight: 700;
+  color: rgba(255,255,255,0.4);
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+
+.creds-table td {
+  padding: 10px 14px;
+  font-size: 13px;
+  color: rgba(255,255,255,0.7);
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+
+.creds-table tr:last-child td { border-bottom: none; }
+.creds-table tr:hover td { background: rgba(255,255,255,0.02); }
+
+.role-tag {
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.cred-code {
+  background: rgba(99,102,241,0.1);
+  color: #a5b4fc;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+@media (max-width: 768px) {
+  .tl-header { flex-wrap: wrap; }
+  .tl-header-stats { gap: 12px; }
+  .agent-user-card { flex-wrap: wrap; }
+}
+
+/* Small Leads List (Inside agent cards) */
+.small-leads-list {
+  background: rgba(0,0,0,0.15);
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.05);
+}
+
+.sll-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  color: rgba(255,255,255,0.7);
+  cursor: pointer;
+  background: rgba(255,255,255,0.02);
+  transition: background 0.2s;
+}
+.sll-header:hover {
+  background: rgba(255,255,255,0.05);
+  color: white;
+}
+
+.sll-items {
+  display: flex;
+  flex-direction: column;
+  padding: 8px;
+  gap: 6px;
+  border-top: 1px solid rgba(255,255,255,0.05);
+}
+
+.sll-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: rgba(255,255,255,0.03);
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.03);
+}
+
+.sll-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sll-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: white;
+}
+
+.sll-date {
+  font-size: 11px;
+  color: rgba(255,255,255,0.4);
+}
+
+.sll-status {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 6px;
+  border: 1px solid;
+}

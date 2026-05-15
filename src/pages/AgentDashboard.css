@@ -1,0 +1,289 @@
+.agent-dash {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 860px;
+  margin: 0 auto;
+}
+
+.section-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: rgba(255,255,255,0.8);
+  margin: 0 0 12px;
+}
+
+/* Welcome banner */
+.agent-welcome {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  background: linear-gradient(135deg, rgba(99,102,241,0.12), rgba(139,92,246,0.06));
+  border: 1px solid rgba(99,102,241,0.2);
+  border-radius: 16px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.welcome-text h2 {
+  font-size: 22px;
+  font-weight: 800;
+  color: white;
+  margin: 0 0 4px;
+}
+
+.welcome-text p {
+  font-size: 13px;
+  color: rgba(255,255,255,0.5);
+  margin: 0;
+}
+
+.welcome-badge {
+  padding: 8px 18px;
+  border-radius: 999px;
+  border: 1px solid;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+/* Main progress card */
+.agent-main-card {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  padding: 28px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 20px;
+  flex-wrap: wrap;
+}
+
+/* Circular progress */
+.circular-wrap {
+  position: relative;
+  width: 140px;
+  height: 140px;
+  flex-shrink: 0;
+}
+
+.circular-inner {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+}
+
+.circ-pct {
+  font-size: 30px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.circ-lbl {
+  font-size: 12px;
+  color: rgba(255,255,255,0.4);
+}
+
+/* Stats */
+.main-stats { flex: 1; min-width: 260px; }
+
+.main-stat-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.main-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 12px 8px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 12px;
+}
+
+.main-stat.highlight {
+  border-width: 1px;
+}
+
+.ms-val {
+  font-size: 26px;
+  font-weight: 900;
+  color: white;
+}
+
+.ms-val.yellow { color: #fbbf24; }
+
+.ms-lbl {
+  font-size: 11px;
+  color: rgba(255,255,255,0.4);
+  text-align: center;
+}
+
+/* Progress bar */
+.bar-section { }
+
+.bar-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: rgba(255,255,255,0.4);
+  margin-bottom: 8px;
+}
+
+.bar-track {
+  height: 10px;
+  background: rgba(255,255,255,0.07);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-bottom: 6px;
+}
+
+.bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 1s ease;
+}
+
+.bar-milestones {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: rgba(255,255,255,0.25);
+}
+
+/* Commission + Breakdown */
+.commission-section {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.comm-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 16px;
+}
+
+.comm-icon { font-size: 36px; flex-shrink: 0; }
+
+.comm-title {
+  font-size: 12px;
+  color: rgba(255,255,255,0.4);
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.comm-amount {
+  font-size: 32px;
+  font-weight: 900;
+  color: #4ade80;
+  line-height: 1;
+}
+
+.comm-amount span { font-size: 16px; }
+
+.comm-formula {
+  font-size: 12px;
+  color: rgba(255,255,255,0.35);
+  margin-top: 4px;
+}
+
+/* Status breakdown */
+.status-breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 16px;
+}
+
+.breakdown-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid;
+}
+
+.bd-val {
+  font-size: 22px;
+  font-weight: 900;
+}
+
+.bd-lbl {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+/* Recent leads */
+.recent-section {
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 16px;
+  padding: 18px;
+}
+
+.recent-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.recent-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  background: rgba(255,255,255,0.03);
+  border-radius: 10px;
+  transition: background 0.15s;
+}
+
+.recent-item:hover { background: rgba(255,255,255,0.05); }
+
+.recent-avatar {
+  width: 36px;
+  height: 36px;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  font-weight: 700;
+  color: white;
+  flex-shrink: 0;
+}
+
+.recent-info { flex: 1; }
+.recent-name { font-size: 14px; font-weight: 700; color: white; }
+.recent-meta { font-size: 12px; color: rgba(255,255,255,0.35); margin-top: 2px; }
+
+.recent-status {
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+@media (max-width: 640px) {
+  .agent-main-card { flex-direction: column; align-items: center; }
+  .main-stat-row { grid-template-columns: repeat(2, 1fr); }
+  .commission-section { grid-template-columns: 1fr; }
+}
