@@ -57,20 +57,27 @@ export function DataProvider({ children }) {
   useEffect(() => {
     if (isLoading) return;
 
-    const timer = setInterval(async () => {
+    const runAutomations = async () => {
       const now      = new Date();
       const todayStr = now.toISOString().split('T')[0];
 
       // Automated daily backup
       if (localStorage.getItem('crm_last_backup') !== todayStr) {
-        fetch('http://localhost:4000/api/backup', {
-          method:  'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body:    JSON.stringify({ leads, trips, version: 'v1_firestore' }),
-        })
-          .then(r => r.json())
-          .then(d => { if (d.success) localStorage.setItem('crm_last_backup', todayStr); })
-          .catch(() => {});
+        try {
+          const data = JSON.stringify({ leads, trips, version: 'v1_firestore' }, null, 2);
+          const blob = new Blob([data], { type: 'application/json' });
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = `crm_backup_${todayStr}.json`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
+          localStorage.setItem('crm_last_backup', todayStr);
+        } catch (error) {
+          console.error("Backup failed", error);
+        }
       }
 
       // Trip completion + 24h reminders
@@ -110,7 +117,13 @@ export function DataProvider({ children }) {
           await updateDoc(doc(db, 'trips', trip.id), { status: 'Active' });
         }
       }
-    }, 60000);
+    };
+
+    // Call immediately
+    runAutomations();
+
+    // Then set interval
+    const timer = setInterval(runAutomations, 60000);
 
     return () => clearInterval(timer);
   }, [isLoading, leads, trips]);
