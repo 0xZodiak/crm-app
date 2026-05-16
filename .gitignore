@@ -1,3 +1,9 @@
+# Environment variables — لا ترفع ملف .env على GitHub أبداً
+.env
+.env.local
+.env.*.local
+serviceAccountKey.json
+
 # Logs
 logs
 *.log

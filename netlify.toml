@@ -1,0 +1,9 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+# مهم جداً: عشان الـ routing في React يشتغل صح على Netlify
+[[redirects]]
+  from   = "/*"
+  to     = "/index.html"
+  status = 200

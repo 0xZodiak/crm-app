@@ -32,12 +32,12 @@ export default function Leads() {
     setCurrentPage(1);
   };
 
-  const handleSave = (lead) => {
+  const handleSave = async (lead) => {
     try {
       if (editLead) {
-        updateLead(editLead.id, lead);
+        await updateLead(editLead.id, lead);
       } else {
-        addLead(lead);
+        await addLead(lead);
       }
       setModalOpen(false);
       setEditLead(null);

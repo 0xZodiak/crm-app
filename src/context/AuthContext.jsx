@@ -1,66 +1,76 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import {
+  signInWithEmailAndPassword,
+  signOut,
+  onAuthStateChanged,
+} from 'firebase/auth';
+import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
+import { auth, db } from '../firebase';
 
 const AuthContext = createContext(null);
 
-// Demo users - in production this would come from Firebase Auth + Firestore
-const DEMO_USERS = [
-  // ─── Admins ───────────────────────────────────────────────────────────
-  { id: 'admin1', username: 'sharif', password: 'admin123', name: 'الحج شريف', role: 'admin', email: 'sharif@crm.com' },
-  { id: 'admin2', username: 'hazem', password: 'admin123', name: 'حازم', role: 'admin', email: 'hazem@crm.com' },
-  { id: 'admin3', username: 'abdelazim', password: 'admin123', name: 'عبد العظيم', role: 'admin', email: 'abdelazim@crm.com' },
-
-  // ─── Team Leaders ─────────────────────────────────────────────────────
-  // تيم حمزة وسارة (تيم واحد)
-  { id: 'tl1', username: 'hamza', password: 'leader123', name: 'حمزة أحمد', role: 'team_leader', email: 'hamza@crm.com', teamId: 'team1' },
-  { id: 'tl2', username: 'sara', password: 'leader123', name: 'سارة ممدوح', role: 'team_leader', email: 'sara@crm.com', teamId: 'team1' },
-
-  // ─── Agents – فريق واحد ───────────────────────────────────────────────
-  { id: 'agent1', username: 'karim', password: 'agent123', name: 'كريم', role: 'agent', email: 'karim@crm.com', teamId: 'team1', teamLeaderId: 'tl1' },
-  { id: 'agent2', username: 'inas', password: 'agent123', name: 'إيناس', role: 'agent', email: 'inas@crm.com', teamId: 'team1', teamLeaderId: 'tl1' },
-  { id: 'agent3', username: 'hind', password: 'agent123', name: 'هند', role: 'agent', email: 'hind@crm.com', teamId: 'team1', teamLeaderId: 'tl1' },
-  { id: 'agent4', username: 'mhmd', password: 'agent123', name: 'محمد', role: 'agent', email: 'mhmd@crm.com', teamId: 'team1', teamLeaderId: 'tl1' },
-  { id: 'agent5', username: 'mai', password: 'agent123', name: 'مي', role: 'agent', email: 'mai@crm.com', teamId: 'team1', teamLeaderId: 'tl1' },
-  { id: 'agent6', username: 'mona', password: 'agent123', name: 'منه', role: 'agent', email: 'mona@crm.com', teamId: 'team1', teamLeaderId: 'tl1' },
-];
-
-export { DEMO_USERS };
-
 export function AuthProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading]         = useState(true);
 
+  // مراقبة حالة الـ Firebase Auth — بيشتغل تلقائياً عند فتح التطبيق
   useEffect(() => {
-    const stored = localStorage.getItem('crm_user');
-    if (stored) {
-      try {
-        setCurrentUser(JSON.parse(stored));
-      } catch (e) {
-        localStorage.removeItem('crm_user');
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        // جيب بيانات الـ role والـ team من Firestore
+        const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+        if (userDoc.exists()) {
+          setCurrentUser({ id: firebaseUser.uid, ...userDoc.data() });
+        } else {
+          // يوزر موجود في Auth بس مش في Firestore — مشكلة في الـ setup
+          setCurrentUser(null);
+          await signOut(auth);
+        }
+      } else {
+        setCurrentUser(null);
       }
-    }
-    setLoading(false);
+      setLoading(false);
+    });
+
+    return unsubscribe;
   }, []);
 
-  const login = (username, password) => {
-    const user = DEMO_USERS.find(u => u.username === username && u.password === password);
-    if (user) {
-      const { password: _, ...safeUser } = user;
-      setCurrentUser(safeUser);
-      localStorage.setItem('crm_user', JSON.stringify(safeUser));
-      return { success: true, user: safeUser };
+  // ─── login: username → ابحث عن الـ email في Firestore → Firebase Auth ───
+  const login = async (username, password) => {
+    try {
+      // 1. ابحث في Firestore عن الـ username
+      const q       = query(collection(db, 'users'), where('username', '==', username.trim()));
+      const snapshot = await getDocs(q);
+
+      if (snapshot.empty) {
+        return { success: false, error: 'اسم المستخدم أو كلمة المرور غير صحيحة' };
+      }
+
+      const userData = snapshot.docs[0].data();
+
+      // 2. سجّل دخول بـ Firebase Auth
+      await signInWithEmailAndPassword(auth, userData.email, password);
+
+      // onAuthStateChanged هيتكال تلقائياً ويحدّث currentUser
+      return { success: true };
+    } catch (err) {
+      // Firebase بترجع أكواد خطأ — نحوّلها لرسالة عربية
+      const msg =
+        err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential'
+          ? 'اسم المستخدم أو كلمة المرور غير صحيحة'
+          : err.code === 'auth/too-many-requests'
+          ? 'تم تجاوز عدد المحاولات، حاول لاحقاً'
+          : 'حدث خطأ، حاول مرة أخرى';
+      return { success: false, error: msg };
     }
-    return { success: false, error: 'اسم المستخدم أو كلمة المرور غير صحيحة' };
   };
 
-  const logout = () => {
-    setCurrentUser(null);
-    localStorage.removeItem('crm_user');
+  const logout = async () => {
+    await signOut(auth);
   };
-
-  const value = { currentUser, login, logout, loading, DEMO_USERS };
 
   return (
-    <AuthContext.Provider value={value}>
+    <AuthContext.Provider value={{ currentUser, login, logout, loading }}>
       {!loading && children}
     </AuthContext.Provider>
   );

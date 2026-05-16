@@ -51,7 +51,7 @@ export default function Trips() {
     setModalOpen(true);
   };
 
-  const handleSaveTrip = (e) => {
+  const handleSaveTrip = async (e) => {
     e.preventDefault();
     
     // VIP Rules Validation
@@ -71,13 +71,17 @@ export default function Trips() {
       }
     }
 
-    if (editTrip.id) {
-      updateTrip(editTrip.id, editTrip);
-    } else {
-      addTrip(editTrip);
+    try {
+      if (editTrip.id) {
+        await updateTrip(editTrip.id, editTrip);
+      } else {
+        await addTrip(editTrip);
+      }
+      setModalOpen(false);
+      setEditTrip(null);
+    } catch (err) {
+      alert(err.message);
     }
-    setModalOpen(false);
-    setEditTrip(null);
   };
 
   const getStatusColor = (status) => {
@@ -333,7 +337,7 @@ export default function Trips() {
                 <button type="button" onClick={() => setModalOpen(false)}>إلغاء</button>
                 <button type="submit" className="save-btn">حفظ الرحلة</button>
                 {editTrip.id && (
-                  <button type="button" className="delete-btn" onClick={() => { deleteTrip(editTrip.id); setModalOpen(false); }}>حذف</button>
+                  <button type="button" className="delete-btn" onClick={async () => { try { await deleteTrip(editTrip.id); setModalOpen(false); } catch(err) { alert(err.message); } }}>حذف</button>
                 )}
               </div>
             </form>
