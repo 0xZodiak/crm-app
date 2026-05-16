@@ -1,7 +1,7 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import {
   collection, onSnapshot, addDoc, updateDoc, deleteDoc,
-  doc, serverTimestamp,
+  doc, serverTimestamp, runTransaction, query, where, getDocs, setDoc
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from './AuthContext';
@@ -42,40 +42,49 @@ export function DataProvider({ children }) {
     let loaded = 0;
     const done = () => { loaded++; if (loaded >= 3) setIsLoading(false); };
 
-    const unsubLeads = onSnapshot(collection(db, 'leads'), (snap) => {
-      setLeads(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-      done();
-    });
+    const unsubLeads = onSnapshot(collection(db, 'leads'), 
+      (snap) => { setLeads(snap.docs.map(d => ({ id: d.id, ...d.data() }))); done(); },
+      (err) => { console.error('leads listener error:', err); done(); }
+    );
 
-    const unsubTrips = onSnapshot(collection(db, 'trips'), (snap) => {
-      setTrips(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-      done();
-    });
+    const unsubTrips = onSnapshot(collection(db, 'trips'), 
+      (snap) => { setTrips(snap.docs.map(d => ({ id: d.id, ...d.data() }))); done(); },
+      (err) => { console.error('trips listener error:', err); done(); }
+    );
 
-    const unsubUsers = onSnapshot(collection(db, 'users'), (snap) => {
-      setUsers(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-      done();
-    });
+    const unsubUsers = onSnapshot(collection(db, 'users'), 
+      (snap) => { setUsers(snap.docs.map(d => ({ id: d.id, ...d.data() }))); done(); },
+      (err) => { console.error('users listener error:', err); done(); }
+    );
+
+    const fallback = setTimeout(() => setIsLoading(false), 10000);
 
     if ('Notification' in window && Notification.permission === 'default') {
       Notification.requestPermission();
     }
 
-    return () => { unsubLeads(); unsubTrips(); unsubUsers(); };
+    return () => { unsubLeads(); unsubTrips(); unsubUsers(); clearTimeout(fallback); };
   }, [currentUser]);
 
   // ─── Automations: Trip Completion & Reminders ────────────────────────────
+  const leadsRef = useRef(leads);
+  const tripsRef = useRef(trips);
+  useEffect(() => { leadsRef.current = leads; }, [leads]);
+  useEffect(() => { tripsRef.current = trips; }, [trips]);
+
   useEffect(() => {
     if (isLoading) return;
 
     const runAutomations = async () => {
       const now      = new Date();
       const todayStr = now.toISOString().split('T')[0];
+      const currentLeads = leadsRef.current;
+      const currentTrips = tripsRef.current;
 
       // Automated daily backup
       if (localStorage.getItem('crm_last_backup') !== todayStr) {
         try {
-          const data = JSON.stringify({ leads, trips, version: 'v1_firestore' }, null, 2);
+          const data = JSON.stringify({ leads: currentLeads, trips: currentTrips, version: 'v1_firestore' }, null, 2);
           const blob = new Blob([data], { type: 'application/json' });
           const url = URL.createObjectURL(blob);
           const link = document.createElement('a');
@@ -92,7 +101,7 @@ export function DataProvider({ children }) {
       }
 
       // Trip completion + 24h reminders
-      for (const trip of trips) {
+      for (const trip of currentTrips) {
         const tripDate      = new Date(trip.date);
         const completionDate = new Date(tripDate.getTime() + (trip.duration || 1) * 86400000);
 
@@ -103,7 +112,7 @@ export function DataProvider({ children }) {
             const notifId = `notif_24h_${trip.id}`;
             setNotifications(prev => {
               if (prev.find(n => n.id === notifId)) return prev;
-              const confirmed    = leads.filter(l => l.tripId === trip.id && l.status === 'مؤكد');
+              const confirmed    = currentLeads.filter(l => l.tripId === trip.id && l.status === 'مؤكد');
               const capacity     = trip.busType === 'VIP 30' ? 30 : trip.busType === 'سياحي 51' ? 51 : 49;
               const remaining    = capacity - confirmed.reduce((a, l) => a + (l.seats?.length || 0), 0);
               const message      = `تذكير: رحلة ${trip.name} (${trip.busType}) ستنطلق خلال 24 ساعة. الركاب: ${confirmed.length}. المقاعد المتبقية: ${remaining}.`;
@@ -120,7 +129,7 @@ export function DataProvider({ children }) {
         // Auto-complete trip after end date
         if (now > completionDate && trip.status === 'Upcoming') {
           await updateDoc(doc(db, 'trips', trip.id), { status: 'Completed' });
-          const confirmed = leads.filter(l => l.tripId === trip.id && l.status === 'مؤكد');
+          const confirmed = currentLeads.filter(l => l.tripId === trip.id && l.status === 'مؤكد');
           for (const lead of confirmed) {
             await updateDoc(doc(db, 'leads', lead.id), { status: 'عميلنا' });
           }
@@ -137,14 +146,16 @@ export function DataProvider({ children }) {
     const timer = setInterval(runAutomations, 60000);
 
     return () => clearInterval(timer);
-  }, [isLoading, leads, trips]);
+  }, [isLoading]);
 
   // ─── Trip helpers ─────────────────────────────────────────────────────────
 
   const addTrip = async (trip) => {
     const { id: _, ...data } = trip;
-    const ref = await addDoc(collection(db, 'trips'), { ...data, createdAt: serverTimestamp() });
-    return ref.id;
+    const dayDate = data.date.split('T')[0];
+    const tripId = `${dayDate}_${data.busType.replace(/\s/g, '_')}`;
+    await setDoc(doc(db, 'trips', tripId), { ...data, createdAt: serverTimestamp() }, { merge: true });
+    return tripId;
   };
 
   const updateTrip = async (id, updates) => {
@@ -168,8 +179,7 @@ export function DataProvider({ children }) {
   // ابحث عن رحلة بنفس اليوم والباص أو أنشئ واحدة جديدة
   const findOrCreateTrip = async (fullDate, destination, busType = 'سياحي 49') => {
     const dayDate = fullDate.split('T')[0];
-    const existing = trips.find(t => t.date.startsWith(dayDate) && t.busType === busType);
-    if (existing) return existing.id;
+    const tripId = `${dayDate}_${busType.replace(/\s/g, '_')}`;
 
     const newTrip = {
       name:        `${destination} - ${dayDate}`,
@@ -181,28 +191,33 @@ export function DataProvider({ children }) {
       autoComplete: true,
       createdAt:   serverTimestamp(),
     };
-    const ref = await addDoc(collection(db, 'trips'), newTrip);
-    return ref.id;
+    await setDoc(doc(db, 'trips', tripId), newTrip, { merge: true });
+    return tripId;
   };
 
   // ─── Lead helpers ─────────────────────────────────────────────────────────
 
   const addLead = async (leadData) => {
     const tripId = await findOrCreateTrip(leadData.date, leadData.destination, leadData.busType);
-
-    // فحص تعارض المقاعد
-    const tripLeads   = leads.filter(l => l.tripId === tripId && l.status === 'مؤكد');
-    const bookedSeats = tripLeads.reduce((a, l) => [...a, ...(l.seats || [])], []);
-    if (leadData.status === 'مؤكد' && leadData.seats.some(s => bookedSeats.includes(s))) {
-      throw new Error('عذراً، بعض المقاعد المختارة تم حجزها بالفعل في هذه الرحلة.');
-    }
-
     const { id: _, ...data } = leadData;
-    await addDoc(collection(db, 'leads'), {
-      ...data,
-      tripId,
-      addedDate:  new Date().toISOString().split('T')[0],
-      createdAt:  serverTimestamp(),
+
+    await runTransaction(db, async (transaction) => {
+      if (leadData.status === 'مؤكد' && leadData.seats && leadData.seats.length > 0) {
+        const q = query(collection(db, 'leads'), where('tripId', '==', tripId), where('status', '==', 'مؤكد'));
+        const snapshot = await getDocs(q);
+        const bookedSeats = snapshot.docs.reduce((a, d) => [...a, ...(d.data().seats || [])], []);
+        if (leadData.seats.some(s => bookedSeats.includes(s))) {
+          throw new Error('عذراً، بعض المقاعد المختارة تم حجزها بالفعل في هذه الرحلة.');
+        }
+      }
+
+      const newLeadRef = doc(collection(db, 'leads'));
+      transaction.set(newLeadRef, {
+        ...data,
+        tripId,
+        addedDate:  new Date().toISOString().split('T')[0],
+        createdAt:  serverTimestamp(),
+      });
     });
   };
 
@@ -215,17 +230,20 @@ export function DataProvider({ children }) {
       newLead.busType     || oldLead.busType,
     );
     newLead.tripId = tripId;
-
-    if (newLead.status === 'مؤكد') {
-      const others      = leads.filter(l => l.id !== id && l.tripId === tripId && l.status === 'مؤكد');
-      const bookedSeats = others.reduce((a, l) => [...a, ...(l.seats || [])], []);
-      if (newLead.seats.some(s => bookedSeats.includes(s))) {
-        throw new Error('عذراً، بعض المقاعد المختارة تم حجزها بالفعل من قبل مستخدم آخر.');
-      }
-    }
-
     const { id: _, ...data } = newLead;
-    await updateDoc(doc(db, 'leads', id), data);
+
+    await runTransaction(db, async (transaction) => {
+      if (newLead.status === 'مؤكد' && newLead.seats && newLead.seats.length > 0) {
+        const q = query(collection(db, 'leads'), where('tripId', '==', tripId), where('status', '==', 'مؤكد'));
+        const snapshot = await getDocs(q);
+        const others = snapshot.docs.filter(d => d.id !== id);
+        const bookedSeats = others.reduce((a, d) => [...a, ...(d.data().seats || [])], []);
+        if (newLead.seats.some(s => bookedSeats.includes(s))) {
+          throw new Error('عذراً، بعض المقاعد المختارة تم حجزها بالفعل من قبل مستخدم آخر.');
+        }
+      }
+      transaction.update(doc(db, 'leads', id), data);
+    });
   };
 
   const deleteLead = async (id) => {

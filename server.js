@@ -34,8 +34,22 @@ if (!admin.apps.length) {
 
 const db  = admin.firestore();
 const app = express();
-app.use(cors());
+
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || '').split(',').filter(Boolean);
+app.use(cors({ origin: allowedOrigins.length ? allowedOrigins : false }));
 app.use(express.json({ limit: '50mb' }));
+
+const verifyFirebaseToken = async (req, res, next) => {
+  try {
+    const token = req.headers.authorization?.split('Bearer ')[1];
+    if (!token) return res.status(401).json({ error: 'Unauthorized' });
+    const decoded = await admin.auth().verifyIdToken(token);
+    req.user = decoded;
+    next();
+  } catch {
+    res.status(401).json({ error: 'Invalid token' });
+  }
+};
 
 // ─── SSE clients ──────────────────────────────────────────────────────────────
 const sseClients = new Set();
@@ -89,14 +103,14 @@ db.collection('leads').onSnapshot(
 );
 
 // ─── POST /api/backup ─────────────────────────────────────────────────────────
-app.post('/api/backup', (req, res) => {
+app.post('/api/backup', verifyFirebaseToken, (req, res) => {
   try {
     const backupDir  = path.join(__dirname, 'data', 'backups');
     if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
 
     const dateStr    = new Date().toISOString().split('T')[0];
-    const backupFile = path.join(backupDir, `backup-${dateStr}.sql`);
-    const content    = `-- CRM Automated Backup\n-- Date: ${dateStr}\n\n/* JSON_DATA_START\n${JSON.stringify(req.body, null, 2)}\nJSON_DATA_END */\n`;
+    const backupFile = path.join(backupDir, `backup-${dateStr}.json`);
+    const content    = JSON.stringify(req.body, null, 2);
 
     fs.writeFileSync(backupFile, content, 'utf-8');
     console.log(`✅ Backup saved: ${backupFile}`);

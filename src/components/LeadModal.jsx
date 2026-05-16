@@ -4,19 +4,10 @@ import { useData } from '../context/DataContext';
 import BusSelector from './BusSelector';
 import './LeadModal.css';
 
-const DEMO_USERS_IMPORT = [
-  { id: 'tl1', name: 'محمد سالم', role: 'team_leader', teamId: 'team1' },
-  { id: 'tl2', name: 'سارة أحمد', role: 'team_leader', teamId: 'team2' },
-  { id: 'agent1', name: 'خالد عمر', role: 'agent', teamId: 'team1', teamLeaderId: 'tl1' },
-  { id: 'agent2', name: 'نور حسن', role: 'agent', teamId: 'team1', teamLeaderId: 'tl1' },
-  { id: 'agent3', name: 'ريم علي', role: 'agent', teamId: 'team2', teamLeaderId: 'tl2' },
-  { id: 'agent4', name: 'يوسف كمال', role: 'agent', teamId: 'team2', teamLeaderId: 'tl2' },
-];
-
 export default function LeadModal({ lead, users, currentUser, onSave, onClose }) {
   const { trips } = useData();
-  const agentsAndTLs = users ? users.filter(u => u.role === 'agent' || u.role === 'team_leader') : DEMO_USERS_IMPORT.filter(u => u.role === 'agent' || u.role === 'team_leader');
-  const teamLeaders = users ? users.filter(u => u.role === 'team_leader') : DEMO_USERS_IMPORT.filter(u => u.role === 'team_leader');
+  const agentsAndTLs = users.filter(u => u.role === 'agent' || u.role === 'team_leader');
+  const teamLeaders = users.filter(u => u.role === 'team_leader');
 
   const getDefaultAgent = () => {
     if (currentUser?.role === 'agent' || currentUser?.role === 'team_leader') {
@@ -91,7 +82,6 @@ export default function LeadModal({ lead, users, currentUser, onSave, onClose })
       if (form.destination !== 'مكة') e.destination = 'الباص VIP متاح لمكة فقط';
       const day = new Date(form.date).getDay();
       if (day !== 1 && day !== 4) e.date = 'باص VIP يخرج يومي الاثنين والخميس فقط';
-      if (form.days !== 3) e.days = 'رحلة الباص VIP 3 أيام فقط، لا أقل ولا أكثر';
     }
 
     setErrors(e);
@@ -148,44 +138,48 @@ export default function LeadModal({ lead, users, currentUser, onSave, onClose })
               {errors.date && <span className="field-error">{errors.date}</span>}
             </div>
 
-            <div className="modal-field">
-              <label>الوجهة</label>
-              <select value={form.destination} onChange={e => set('destination', e.target.value)}>
-                <option value="مكة">مكة</option>
-                <option value="مكة مدينة">مكة مدينة</option>
-              </select>
-            </div>
+            {form.status === 'مؤكد' && (
+              <>
+                <div className="modal-field">
+                  <label>الوجهة</label>
+                  <select value={form.destination} onChange={e => set('destination', e.target.value)}>
+                    <option value="مكة">مكة</option>
+                    <option value="مكة مدينة">مكة مدينة</option>
+                  </select>
+                </div>
 
-            <div className="modal-field">
-              <label>نوع الحضور</label>
-              <select value={form.stayType} onChange={e => set('stayType', e.target.value)}>
-                <option value="إقامة">🏨 إقامة (فندق)</option>
-                <option value="زيارة">🚗 زيارة فقط</option>
-              </select>
-            </div>
+                <div className="modal-field">
+                  <label>نوع الحضور</label>
+                  <select value={form.stayType} onChange={e => set('stayType', e.target.value)}>
+                    <option value="إقامة">🏨 إقامة (فندق)</option>
+                    <option value="زيارة">🚗 زيارة فقط</option>
+                  </select>
+                </div>
 
-            <div className="modal-field">
-              <label>عدد ليالي مكة *</label>
-              <input
-                type="number"
-                min="1"
-                value={form.makkahNights}
-                onChange={e => set('makkahNights', parseInt(e.target.value) || 0)}
-                className={errors.makkahNights ? 'error' : ''}
-              />
-              {errors.makkahNights && <span className="field-error">{errors.makkahNights}</span>}
-            </div>
+                <div className="modal-field">
+                  <label>عدد ليالي مكة *</label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={form.makkahNights}
+                    onChange={e => set('makkahNights', parseInt(e.target.value) || 0)}
+                    className={errors.makkahNights ? 'error' : ''}
+                  />
+                  {errors.makkahNights && <span className="field-error">{errors.makkahNights}</span>}
+                </div>
 
-            {form.destination === 'مكة مدينة' && (
-              <div className="modal-field">
-                <label>عدد ليالي المدينة</label>
-                <input
-                  type="number"
-                  min="0"
-                  value={form.madinahNights}
-                  onChange={e => set('madinahNights', parseInt(e.target.value) || 0)}
-                />
-              </div>
+                {form.destination === 'مكة مدينة' && (
+                  <div className="modal-field">
+                    <label>عدد ليالي المدينة</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={form.madinahNights}
+                      onChange={e => set('madinahNights', parseInt(e.target.value) || 0)}
+                    />
+                  </div>
+                )}
+              </>
             )}
 
             {matchingTrip ? (
