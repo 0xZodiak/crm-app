@@ -4,10 +4,12 @@ import {
   doc, serverTimestamp,
 } from 'firebase/firestore';
 import { db } from '../firebase';
+import { useAuth } from './AuthContext';
 
 const DataContext = createContext(null);
 
 export function DataProvider({ children }) {
+  const { currentUser } = useAuth();
   const [leads,         setLeads]         = useState([]);
   const [trips,         setTrips]         = useState([]);
   const [users,         setUsers]         = useState([]);
@@ -28,6 +30,15 @@ export function DataProvider({ children }) {
 
   // ─── Real-time Firestore Listeners ────────────────────────────────────────
   useEffect(() => {
+    if (!currentUser) {
+      setLeads([]);
+      setTrips([]);
+      setUsers([]);
+      setIsLoading(false);
+      return;
+    }
+
+    setIsLoading(true);
     let loaded = 0;
     const done = () => { loaded++; if (loaded >= 3) setIsLoading(false); };
 
@@ -51,7 +62,7 @@ export function DataProvider({ children }) {
     }
 
     return () => { unsubLeads(); unsubTrips(); unsubUsers(); };
-  }, []);
+  }, [currentUser]);
 
   // ─── Automations: Trip Completion & Reminders ────────────────────────────
   useEffect(() => {

@@ -22,19 +22,19 @@ const db   = admin.firestore();
 // ─── تعريف الـ users ───────────────────────────────────────────────────────
 const USERS = [
   // Admins
-  { username: 'sharif',     password: 'ChangeMe!@1', name: 'الحج شريف',   role: 'admin',       email: 'sharif@crm.com' },
-  { username: 'hazem',      password: 'ChangeMe!@2', name: 'حازم',         role: 'admin',       email: 'hazem@crm.com' },
-  { username: 'abdelazim',  password: 'ChangeMe!@3', name: 'عبد العظيم',  role: 'admin',       email: 'abdelazim@crm.com' },
+  { username: 'sharif',     password: 'admin123', name: 'الحج شريف',   role: 'admin',       email: 'sharif@crm.com' },
+  { username: 'hazem',      password: 'admin123', name: 'حازم',         role: 'admin',       email: 'hazem@crm.com' },
+  { username: 'abdelazim',  password: 'admin123', name: 'عبد العظيم',  role: 'admin',       email: 'abdelazim@crm.com' },
   // Team Leaders
-  { username: 'hamza',      password: 'ChangeMe!@4', name: 'حمزة أحمد',   role: 'team_leader', email: 'hamza@crm.com',  teamId: 'team1' },
-  { username: 'sara',       password: 'ChangeMe!@5', name: 'سارة ممدوح',  role: 'team_leader', email: 'sara@crm.com',   teamId: 'team1' },
+  { username: 'hamza',      password: 'leader123', name: 'حمزة أحمد',   role: 'team_leader', email: 'hamza@crm.com',  teamId: 'team1' },
+  { username: 'sara',       password: 'leader123', name: 'سارة ممدوح',  role: 'team_leader', email: 'sara@crm.com',   teamId: 'team1' },
   // Agents
-  { username: 'karim',      password: 'ChangeMe!@6', name: 'كريم',         role: 'agent',       email: 'karim@crm.com',  teamId: 'team1', teamLeaderId: 'hamza' },
-  { username: 'inas',       password: 'ChangeMe!@7', name: 'إيناس',        role: 'agent',       email: 'inas@crm.com',   teamId: 'team1', teamLeaderId: 'hamza' },
-  { username: 'hind',       password: 'ChangeMe!@8', name: 'هند',          role: 'agent',       email: 'hind@crm.com',   teamId: 'team1', teamLeaderId: 'hamza' },
-  { username: 'mhmd',       password: 'ChangeMe!@9', name: 'محمد',         role: 'agent',       email: 'mhmd@crm.com',   teamId: 'team1', teamLeaderId: 'hamza' },
-  { username: 'mai',        password: 'ChangeMe!10', name: 'مي',           role: 'agent',       email: 'mai@crm.com',    teamId: 'team1', teamLeaderId: 'sara' },
-  { username: 'mona',       password: 'ChangeMe!11', name: 'منه',          role: 'agent',       email: 'mona@crm.com',   teamId: 'team1', teamLeaderId: 'sara' },
+  { username: 'karim',      password: 'agent123', name: 'كريم',         role: 'agent',       email: 'karim@crm.com',  teamId: 'team1', teamLeaderId: 'hamza' },
+  { username: 'inas',       password: 'agent123', name: 'إيناس',        role: 'agent',       email: 'inas@crm.com',   teamId: 'team1', teamLeaderId: 'hamza' },
+  { username: 'hind',       password: 'agent123', name: 'هند',          role: 'agent',       email: 'hind@crm.com',   teamId: 'team1', teamLeaderId: 'hamza' },
+  { username: 'mhmd',       password: 'agent123', name: 'محمد',         role: 'agent',       email: 'mhmd@crm.com',   teamId: 'team1', teamLeaderId: 'hamza' },
+  { username: 'mai',        password: 'agent123', name: 'مي',           role: 'agent',       email: 'mai@crm.com',    teamId: 'team1', teamLeaderId: 'sara' },
+  { username: 'mona',       password: 'agent123', name: 'منه',          role: 'agent',       email: 'mona@crm.com',   teamId: 'team1', teamLeaderId: 'sara' },
 ];
 
 // ─── الـ seeding ───────────────────────────────────────────────────────────────
