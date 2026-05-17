@@ -15,7 +15,7 @@ export default function Leads() {
   const { leads, users, trips, addLead, updateLead, deleteLead, getFilteredLeads } = useData();
   const { currentUser } = useAuth();
 
-  const [filters, setFilters] = useState({ status: '', agentId: '', dateFrom: '', dateTo: '', search: '' });
+  const [filters, setFilters] = useState({ status: '', agentId: '', month: '', day: '', search: '' });
   const [modalOpen, setModalOpen] = useState(false);
   const [editLead, setEditLead] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
@@ -65,9 +65,26 @@ export default function Leads() {
   const canDelete = currentUser.role === 'admin';
 
   const resetFilters = () => {
-    setFilters({ status: '', agentId: '', dateFrom: '', dateTo: '', search: '' });
+    setFilters({ status: '', agentId: '', month: '', day: '', search: '' });
     setCurrentPage(1);
   };
+
+  // توليد قائمة الشهور (6 شهور قبل و 6 شهور بعد من التاريخ الحالي)
+  const monthOptions = useMemo(() => {
+    const options = [];
+    const now = new Date();
+    for (let i = -6; i <= 6; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+      // استخدام التوقيت المحلي بدلاً من ISO لتجنب مشاكل المناطق الزمنية
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const val = `${year}-${month}`; // YYYY-MM
+      const label = d.toLocaleDateString('ar-EG', { month: 'long', year: 'numeric' });
+      options.push({ val, label });
+    }
+    return options;
+  }, []);
+
 
   return (
     <div className="leads-page">
@@ -99,8 +116,22 @@ export default function Leads() {
             </select>
           )}
 
-          <input type="date" value={filters.dateFrom} onChange={e => handleFilterChange('dateFrom', e.target.value)} title="من تاريخ" />
-          <input type="date" value={filters.dateTo} onChange={e => handleFilterChange('dateTo', e.target.value)} title="إلى تاريخ" />
+          <select value={filters.month} onChange={e => handleFilterChange('month', e.target.value)}>
+            <option value="">كل الشهور</option>
+            {monthOptions.map(m => <option key={m.val} value={m.val}>{m.label}</option>)}
+          </select>
+
+          <input
+            type="number"
+            min="1"
+            max="31"
+            placeholder="يوم.."
+            value={filters.day}
+            onChange={e => handleFilterChange('day', e.target.value)}
+            style={{ width: '70px' }}
+            title="فلترة بيوم محدد في الشهر"
+          />
+
 
           {Object.values(filters).some(Boolean) && (
             <button className="reset-btn" onClick={resetFilters}>✕ مسح</button>

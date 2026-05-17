@@ -24,8 +24,6 @@ export default function LeadModal({ lead, users, currentUser, onSave, onClose })
   const [form, setForm] = useState({
     name: lead?.name || '',
     phone: lead?.phone || '',
-    campaignDate: lead?.campaignDate || new Date().toISOString().split('T')[0],
-    campaign: lead?.campaign || '',
     bookingDetails: lead?.bookingDetails || '',
     bookingValue: lead?.bookingValue || '',
     status: lead?.status || 'محتمل',
@@ -94,7 +92,6 @@ export default function LeadModal({ lead, users, currentUser, onSave, onClose })
     onSave({ ...form, phone: form.phone.trim(), busType: effectiveBusType });
   };
 
-  const campaigns = ['انطلاق رمضان', 'انطلاق الصيف', 'انطلاق نهاية العام', 'انطلاق الربيع', 'انطلاق آخر'];
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -131,15 +128,15 @@ export default function LeadModal({ lead, users, currentUser, onSave, onClose })
               </select>
             </div>
 
-            {/* Smart Trip Handling - Date & Destination Select */}
-            <div className="modal-field">
-              <label>تاريخ الانطلاق *</label>
-              <input type="date" value={form.date} onChange={e => set('date', e.target.value)} />
-              {errors.date && <span className="field-error">{errors.date}</span>}
-            </div>
-
             {form.status === 'مؤكد' && (
               <>
+                {/* Smart Trip Handling - Date & Destination Select */}
+                <div className="modal-field">
+                  <label>تاريخ الانطلاق *</label>
+                  <input type="date" value={form.date} onChange={e => set('date', e.target.value)} />
+                  {errors.date && <span className="field-error">{errors.date}</span>}
+                </div>
+
                 <div className="modal-field">
                   <label>الوجهة</label>
                   <select value={form.destination} onChange={e => set('destination', e.target.value)}>
@@ -179,17 +176,17 @@ export default function LeadModal({ lead, users, currentUser, onSave, onClose })
                     />
                   </div>
                 )}
-              </>
-            )}
 
-            {matchingTrip ? (
-              <div className="trip-found-banner full-width">
-                <span>🔄 تم الربط برحلة موجودة لهذا اليوم ونوع الباص: <strong>{matchingTrip.name}</strong> ({matchingTrip.duration || 1} أيام)</span>
-              </div>
-            ) : (
-              <div className="trip-new-banner full-width">
-                <span>🆕 سيتم إنشاء رحلة جديدة لهذا الموعد وهذا الباص.</span>
-              </div>
+                {matchingTrip ? (
+                  <div className="trip-found-banner full-width">
+                    <span>🔄 تم الربط برحلة موجودة لهذا اليوم ونوع الباص: <strong>{matchingTrip.name}</strong> ({matchingTrip.duration || 1} أيام)</span>
+                  </div>
+                ) : (
+                  <div className="trip-new-banner full-width">
+                    <span>🆕 سيتم إنشاء رحلة جديدة لهذا الموعد وهذا الباص.</span>
+                  </div>
+                )}
+              </>
             )}
 
             {/* Agent - disabled for agent role */}

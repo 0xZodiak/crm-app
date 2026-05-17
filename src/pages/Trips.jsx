@@ -32,7 +32,7 @@ export default function Trips() {
   }, [trips, filters, activeTab]);
 
   const selectedTrip = trips.find(t => t.id === selectedTripId);
-  const tripLeads = leads.filter(l => l.campaignDate === selectedTrip?.date?.split('T')[0] && l.status === 'مؤكد');
+  const tripLeads = leads.filter(l => l.tripId === selectedTrip?.id && l.status === 'مؤكد');
 
   const handleOpenEdit = (trip = null) => {
     if (trip) {
@@ -186,7 +186,7 @@ export default function Trips() {
                 </td>
                 <td>
                   <div className="booking-stat">
-                    <strong>{leads.filter(l => l.campaignDate === trip.date?.split('T')[0] && l.status === 'مؤكد').length}</strong>
+                    <strong>{leads.filter(l => l.tripId === trip.id && l.status === 'مؤكد').length}</strong>
                     <span>حجز</span>
                   </div>
                 </td>
@@ -224,7 +224,7 @@ export default function Trips() {
               <div className="bus-map-container">
                  <BusSelector 
                     busType={selectedTrip.busType}
-                    campaignDate={selectedTrip.date?.split('T')[0]}
+                    tripId={selectedTrip.id}
                     selectedSeats={[]}
                     memberCount={1}
                     onSeatsChange={() => {}} // Read-only view for admin

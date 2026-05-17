@@ -24,7 +24,7 @@ const CustomTooltip = ({ active, payload, label }) => {
 };
 
 export default function Dashboard() {
-  const { leads, users, getAgentStats, getTeamLeaderStats, getRanking, globalDateFrom, globalDateTo } = useData();
+  const { leads, users, getAgentStats, getTeamLeaderStats, getRanking, globalDateFrom, globalDateTo, normalizeDate } = useData();
   const { currentUser } = useAuth();
 
   const stats = useMemo(() => {
@@ -35,10 +35,14 @@ export default function Dashboard() {
       filteredLeads = leads.filter(l => l.agentId === currentUser.id);
     }
 
-    if (globalDateFrom) filteredLeads = filteredLeads.filter(l => l.addedDate >= globalDateFrom);
-    if (globalDateTo)   filteredLeads = filteredLeads.filter(l => l.addedDate <= globalDateTo);
+    const dFrom = normalizeDate(globalDateFrom);
+    const dTo   = normalizeDate(globalDateTo);
+
+    if (dFrom) filteredLeads = filteredLeads.filter(l => normalizeDate(l.addedDate) >= dFrom);
+    if (dTo)   filteredLeads = filteredLeads.filter(l => normalizeDate(l.addedDate) <= dTo);
 
     const total = filteredLeads.length;
+
     const bookings = filteredLeads.filter(l => l.status === 'مؤكد').length;
     const interested = filteredLeads.filter(l => l.status === 'مهتم').length;
     const potential = filteredLeads.filter(l => l.status === 'محتمل').length;

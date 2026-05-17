@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import {
   collection, onSnapshot, addDoc, updateDoc, deleteDoc,
-  doc, serverTimestamp, runTransaction, query, where, getDocs, setDoc
+  doc, serverTimestamp, runTransaction, query, where, getDocs, setDoc, deleteField
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from './AuthContext';
@@ -198,7 +198,23 @@ export function DataProvider({ children }) {
   // ─── Lead helpers ─────────────────────────────────────────────────────────
 
   const addLead = async (leadData) => {
-    const tripId = await findOrCreateTrip(leadData.date, leadData.destination, leadData.busType);
+    let tripId = null;
+
+    if (leadData.status === 'مؤكد') {
+      tripId = await findOrCreateTrip(leadData.date, leadData.destination, leadData.busType);
+    } else {
+      delete leadData.destination;
+      delete leadData.stayType;
+      delete leadData.makkahNights;
+      delete leadData.madinahNights;
+      delete leadData.bookingType;
+      delete leadData.memberCount;
+      delete leadData.busType;
+      delete leadData.seats;
+      delete leadData.bookingDetails;
+      delete leadData.bookingValue;
+    }
+
     const { id: _, ...data } = leadData;
 
     await runTransaction(db, async (transaction) => {
@@ -224,11 +240,27 @@ export function DataProvider({ children }) {
   const updateLead = async (id, updates) => {
     const oldLead    = leads.find(l => l.id === id);
     const newLead    = { ...oldLead, ...updates };
-    const tripId     = await findOrCreateTrip(
-      newLead.date        || oldLead.date,
-      newLead.destination || oldLead.destination,
-      newLead.busType     || oldLead.busType,
-    );
+    let tripId       = null;
+
+    if (newLead.status === 'مؤكد') {
+      tripId = await findOrCreateTrip(
+        newLead.date        || oldLead.date,
+        newLead.destination || oldLead.destination,
+        newLead.busType     || oldLead.busType,
+      );
+    } else {
+      newLead.destination = deleteField();
+      newLead.stayType = deleteField();
+      newLead.makkahNights = deleteField();
+      newLead.madinahNights = deleteField();
+      newLead.bookingType = deleteField();
+      newLead.memberCount = deleteField();
+      newLead.busType = deleteField();
+      newLead.seats = deleteField();
+      newLead.bookingDetails = deleteField();
+      newLead.bookingValue = deleteField();
+    }
+
     newLead.tripId = tripId;
     const { id: _, ...data } = newLead;
 
@@ -252,6 +284,24 @@ export function DataProvider({ children }) {
 
   // ─── Filters & Stats (كلها تعمل على الـ local state من الـ Firestore) ───
 
+  // وظيفة مساعدة لتوحيد تنسيق التاريخ إلى YYYY-MM-DD للمقارنة الصحيحة
+  const normalizeDate = (dateStr) => {
+    if (!dateStr) return null;
+    if (typeof dateStr !== 'string') return null;
+    // إذا كان التنسيق YYYY-MM-DD (الافتراضي من input type="date")
+    if (/^\d{4}-\d{2}-\d{2}/.test(dateStr)) return dateStr.split('T')[0];
+    // إذا كان التنسيق MM/DD/YYYY
+    if (/^\d{1,2}\/\d{1,2}\/\d{4}/.test(dateStr)) {
+      const [m, d, y] = dateStr.split('/');
+      return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+    }
+    try {
+      const d = new Date(dateStr);
+      if (!isNaN(d.getTime())) return d.toISOString().split('T')[0];
+    } catch (e) {}
+    return dateStr;
+  };
+
   const getFilteredLeads = (filters, currentUser) => {
     let filtered = [...leads];
 
@@ -261,12 +311,39 @@ export function DataProvider({ children }) {
       filtered = filtered.filter(l => l.teamId === currentUser.teamId);
     }
 
-    if (globalDateFrom) filtered = filtered.filter(l => l.addedDate >= globalDateFrom);
-    if (globalDateTo)   filtered = filtered.filter(l => l.addedDate <= globalDateTo);
+    // الفلترة بنظام الشهر واليوم (تاريخ الرحلة/الموعد هو الأساس)
+    const filterMonth = filters.month; // التنسيق المتوقع: YYYY-MM
+    const filterDay   = filters.day;   // التنسيق المتوقع: رقم اليوم (مثلاً 5)
+
+    if (filterMonth) {
+      filtered = filtered.filter(l => {
+        const tripDate = normalizeDate(l.date); // "YYYY-MM-DD"
+        if (!tripDate) return false;
+        
+        const [y, m, d] = tripDate.split('-');
+        const monthMatch = `${y}-${m}` === filterMonth;
+        
+        if (filterDay) {
+          return monthMatch && parseInt(d) === parseInt(filterDay);
+        }
+        return monthMatch;
+      });
+    } else if (globalDateFrom || globalDateTo) {
+      // الاحتفاظ بالفلتر العالمي كخيار احتياطي إذا لم يتم اختيار شهر محدد
+      const dFrom = normalizeDate(globalDateFrom);
+      const dTo   = normalizeDate(globalDateTo);
+      filtered = filtered.filter(l => {
+        const aDate = normalizeDate(l.addedDate);
+        const tDate = normalizeDate(l.date);
+        const matchFrom = (!dFrom) || (aDate && aDate >= dFrom) || (tDate && tDate >= dFrom);
+        const matchTo   = (!dTo)   || (aDate && aDate <= dTo)   || (tDate && tDate <= dTo);
+        return matchFrom && matchTo;
+      });
+    }
+
     if (filters.status)  filtered = filtered.filter(l => l.status === filters.status);
     if (filters.agentId) filtered = filtered.filter(l => l.agentId === filters.agentId);
-    if (filters.dateFrom) filtered = filtered.filter(l => l.addedDate >= filters.dateFrom);
-    if (filters.dateTo)   filtered = filtered.filter(l => l.addedDate <= filters.dateTo);
+
     if (filters.search) {
       const q = filters.search.toLowerCase();
       filtered = filtered.filter(l =>
@@ -276,10 +353,14 @@ export function DataProvider({ children }) {
     return filtered;
   };
 
+
   const getAgentStats = (agentId) => {
     let agentLeads = leads.filter(l => l.agentId === agentId);
-    if (globalDateFrom) agentLeads = agentLeads.filter(l => l.addedDate >= globalDateFrom);
-    if (globalDateTo)   agentLeads = agentLeads.filter(l => l.addedDate <= globalDateTo);
+    const dFrom = normalizeDate(globalDateFrom);
+    const dTo   = normalizeDate(globalDateTo);
+
+    if (dFrom) agentLeads = agentLeads.filter(l => normalizeDate(l.addedDate) >= dFrom);
+    if (dTo)   agentLeads = agentLeads.filter(l => normalizeDate(l.addedDate) <= dTo);
 
     const bookings = agentLeads.filter(l => l.status === 'مؤكد').length;
     const TARGET   = 150;
@@ -296,8 +377,11 @@ export function DataProvider({ children }) {
 
   const getTeamLeaderStats = (tlId) => {
     let tlLeads = leads.filter(l => l.teamLeaderId === tlId);
-    if (globalDateFrom) tlLeads = tlLeads.filter(l => l.addedDate >= globalDateFrom);
-    if (globalDateTo)   tlLeads = tlLeads.filter(l => l.addedDate <= globalDateTo);
+    const dFrom = normalizeDate(globalDateFrom);
+    const dTo   = normalizeDate(globalDateTo);
+
+    if (dFrom) tlLeads = tlLeads.filter(l => normalizeDate(l.addedDate) >= dFrom);
+    if (dTo)   tlLeads = tlLeads.filter(l => normalizeDate(l.addedDate) <= dTo);
 
     const bookings    = tlLeads.filter(l => l.status === 'مؤكد').length;
     const TARGET      = 200;
@@ -305,6 +389,7 @@ export function DataProvider({ children }) {
 
     return { total: tlLeads.length, bookings, target: TARGET, progress: Math.round((bookings / TARGET) * 1000) / 10, directLeads };
   };
+
 
   const getRanking = () => {
     const agents = users.filter(u => u.role === 'agent');
@@ -327,6 +412,7 @@ export function DataProvider({ children }) {
       globalDateFrom, setGlobalDateFrom,
       globalDateTo,   setGlobalDateTo,
       isLoading, notifications, markNotificationRead,
+      normalizeDate,
     }}>
       {children}
     </DataContext.Provider>

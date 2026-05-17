@@ -17,6 +17,19 @@ export default function Layout({ children, activePage, setActivePage }) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
+  const handleGlobalDateChange = (type, val) => {
+    if (type === 'from') {
+      if (globalDateTo && val > globalDateTo) {
+        setGlobalDateTo('');
+      }
+      setGlobalDateFrom(val);
+    } else {
+      if (globalDateFrom && val < globalDateFrom) {
+        setGlobalDateFrom('');
+      }
+      setGlobalDateTo(val);
+    }
+  };
 
   const unreadCount = notifications?.filter(n => !n.read).length || 0;
 
@@ -97,14 +110,14 @@ export default function Layout({ children, activePage, setActivePage }) {
               <input 
                 type="date" 
                 value={globalDateFrom} 
-                onChange={(e) => setGlobalDateFrom(e.target.value)}
+                onChange={(e) => handleGlobalDateChange('from', e.target.value)}
                 style={{ background: 'transparent', border: 'none', color: 'white', colorScheme: 'dark', outline: 'none', fontFamily: 'inherit' }}
               />
               <span style={{ fontSize: '14px', marginRight: '8px' }}>إلى:</span>
               <input 
                 type="date" 
                 value={globalDateTo} 
-                onChange={(e) => setGlobalDateTo(e.target.value)}
+                onChange={(e) => handleGlobalDateChange('to', e.target.value)}
                 style={{ background: 'transparent', border: 'none', color: 'white', colorScheme: 'dark', outline: 'none', fontFamily: 'inherit' }}
               />
               {(globalDateFrom || globalDateTo) && (
