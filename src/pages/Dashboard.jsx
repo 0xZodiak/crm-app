@@ -5,6 +5,8 @@ import {
 } from 'recharts';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
+import { collection, doc, setDoc } from 'firebase/firestore';
+import { db } from '../firebase';
 import './Dashboard.css';
 
 const COLORS = ['#6366f1', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
@@ -24,8 +26,90 @@ const CustomTooltip = ({ active, payload, label }) => {
 };
 
 export default function Dashboard() {
-  const { leads, users, getAgentStats, getTeamLeaderStats, getRanking, globalDateFrom, globalDateTo, normalizeDate } = useData();
+  const { leads, trips, users, getTeamLeaderStats, getRanking, globalDateFrom, globalDateTo, normalizeDate } = useData();
   const { currentUser } = useAuth();
+
+  const handleCloseMonth = async () => {
+    if (!window.confirm('هل أنت متأكد من إغلاق الشهر الحالي وتصفير المبيعات وتصدير البيانات؟')) {
+      return;
+    }
+    try {
+      // Determine current month string YYYY-MM
+      const now = new Date();
+      const monthKey = now.toISOString().slice(0, 7);
+
+      // Filter leads and trips for the current month
+      const monthLeads = leads.filter(l => {
+        const date = (l.addedDate || l.date || '').split('T')[0];
+        return date.startsWith(monthKey);
+      });
+      const monthTrips = trips.filter(t => {
+        const date = (t.date || '').split('T')[0];
+        return date.startsWith(monthKey);
+      });
+
+      // Calculate total sales from leads (bookingValue)
+      const totalSales = monthLeads
+        .filter(l => l.status === 'مؤكد' || l.status === 'عميلنا')
+        .reduce((sum, l) => sum + (Number(l.bookingValue) || 0), 0);
+
+      // Prepare CSV content with BOM for Excel Arabic support
+      const csvRows = [];
+      csvRows.push(['Summary of Monthly Archive', monthKey].join(','));
+      csvRows.push(['Total Sales', `${totalSales} Rial`].join(','));
+      csvRows.push([]);
+      csvRows.push(['Type', 'ID', 'Name', 'Date', 'Status', 'Value / Details'].join(','));
+      monthLeads.forEach(l => {
+        csvRows.push([
+          'Lead',
+          l.id,
+          l.name?.replace(/,/g, ' '),
+          l.date?.split('T')[0] || '',
+          l.status,
+          l.bookingValue || 0
+        ].join(','));
+      });
+      monthTrips.forEach(t => {
+        csvRows.push([
+          'Trip',
+          t.id,
+          t.name?.replace(/,/g, ' '),
+          t.date?.split('T')[0] || '',
+          t.status,
+          t.busType || ''
+        ].join(','));
+      });
+      const csvContent = '\uFEFF' + csvRows.join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `monthly_archive_${monthKey}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      // Save archive to Firebase
+      const archiveRef = doc(collection(db, 'monthly_archives'), monthKey);
+      await setDoc(archiveRef, {
+        month: monthKey,
+        leads: monthLeads,
+        trips: monthTrips,
+        totalSales,
+        createdAt: new Date()
+      });
+
+      // Reset monthly sales total
+      const totalRef = doc(collection(db, 'monthly_totals'), monthKey);
+      await setDoc(totalRef, { totalSales: 0 }, { merge: true });
+
+      alert('تم إغلاق الشهر وتأريش البيانات وتصفير المبيعات بنجاح!');
+    } catch (err) {
+      console.error('Close month error:', err);
+      alert('فشل في إغلاق الشهر. يرجى مراجعة وحدة التحكم.');
+    }
+  };
 
   const stats = useMemo(() => {
     let filteredLeads = leads;
@@ -43,13 +127,18 @@ export default function Dashboard() {
 
     const total = filteredLeads.length;
 
-    const bookings = filteredLeads.filter(l => l.status === 'مؤكد').length;
+    const bookings = filteredLeads.filter(l => l.status === 'مؤكد' || l.status === 'عميلنا').length;
     const interested = filteredLeads.filter(l => l.status === 'مهتم').length;
     const potential = filteredLeads.filter(l => l.status === 'محتمل').length;
     const ourCustomer = filteredLeads.filter(l => l.status === 'عميلنا').length;
     const conversionRate = total > 0 ? ((bookings / total) * 100).toFixed(1) : 0;
+    
+    // Calculate total booking value directly from 'مؤكد' and 'عميلنا' leads
+    const totalBookingValue = filteredLeads
+      .filter(l => (l.status === 'مؤكد' || l.status === 'عميلنا') && l.bookingValue)
+      .reduce((sum, l) => sum + (Number(l.bookingValue) || 0), 0);
 
-    return { total, bookings, interested, potential, ourCustomer, conversionRate, filteredLeads };
+    return { total, bookings, interested, potential, ourCustomer, conversionRate, totalBookingValue, filteredLeads };
   }, [leads, currentUser, globalDateFrom, globalDateTo]);
 
   const teamLeaders = users.filter(u => u.role === 'team_leader');
@@ -94,6 +183,41 @@ export default function Dashboard() {
 
   return (
     <div className="dashboard">
+      {currentUser.role === 'admin' && (
+        <div className="dashboard-actions" style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: '8px' }}>
+          <button 
+            className="close-month-btn" 
+            onClick={handleCloseMonth}
+            style={{
+              background: 'linear-gradient(135deg, #ef4444, #b91c1c)',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              padding: '10px 20px',
+              fontSize: '14px',
+              fontWeight: '700',
+              fontFamily: 'Cairo, sans-serif',
+              cursor: 'pointer',
+              boxShadow: '0 4px 12px rgba(239, 68, 68, 0.2)',
+              transition: 'all 0.2s ease',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.transform = 'translateY(-2px)';
+              e.currentTarget.style.boxShadow = '0 6px 16px rgba(239, 68, 68, 0.3)';
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 4px 12px rgba(239, 68, 68, 0.2)';
+            }}
+          >
+            🔒 إغلاق الشهر وتأريش البيانات (Close Month)
+          </button>
+        </div>
+      )}
+
       {/* KPI Cards */}
       <div className="kpi-grid">
         <div className="kpi-card blue">
@@ -112,6 +236,14 @@ export default function Dashboard() {
           </div>
           <div className="kpi-bg-icon">✅</div>
         </div>
+        <div className="kpi-card yellow">
+          <div className="kpi-icon">💰</div>
+          <div className="kpi-info">
+            <span className="kpi-value">{Number(stats.totalBookingValue || 0).toLocaleString()} ريال</span>
+            <span className="kpi-label">إجمالي المبيعات</span>
+          </div>
+          <div className="kpi-bg-icon">💰</div>
+        </div>
         <div className="kpi-card purple">
           <div className="kpi-icon">🔥</div>
           <div className="kpi-info">
@@ -120,14 +252,6 @@ export default function Dashboard() {
           </div>
           <div className="kpi-bg-icon">🔥</div>
         </div>
-        <div className="kpi-card yellow">
-          <div className="kpi-icon">📈</div>
-          <div className="kpi-info">
-            <span className="kpi-value">{stats.conversionRate}%</span>
-            <span className="kpi-label">نسبة التحويل</span>
-          </div>
-          <div className="kpi-bg-icon">📈</div>
-        </div>
         <div className="kpi-card pink">
           <div className="kpi-icon">🤝</div>
           <div className="kpi-info">
@@ -135,6 +259,14 @@ export default function Dashboard() {
             <span className="kpi-label">عملاؤنا السابقون</span>
           </div>
           <div className="kpi-bg-icon">🤝</div>
+        </div>
+        <div className="kpi-card cyan">
+          <div className="kpi-icon">📈</div>
+          <div className="kpi-info">
+            <span className="kpi-value">{stats.conversionRate}%</span>
+            <span className="kpi-label">نسبة التحويل</span>
+          </div>
+          <div className="kpi-bg-icon">📈</div>
         </div>
       </div>
 
@@ -240,38 +372,46 @@ export default function Dashboard() {
               return teamIds.map(teamId => {
                 const teamLeadersForThisTeam = teamLeaders.filter(t => t.teamId === teamId);
                 const teamLeads = leads.filter(l => l.teamId === teamId);
-                
-                const bookings = teamLeads.filter(l => l.status === 'مؤكد').length;
-                const total = teamLeads.length;
-                const target = 200 * teamLeadersForThisTeam.length;
-                const progress = (bookings / target) * 100;
-                
-                const percent = Math.min(progress, 100);
-                const color = progress >= 100 ? '#22c55e' : progress >= 50 ? '#eab308' : '#ef4444';
+                const totalLeads = teamLeads.length;
 
                 return (
-                  <div className="tl-card" key={teamId}>
+                  <div className="tl-card" key={teamId} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                     <div className="tl-card-header">
                       <div className="tl-avatars-stack" style={{ display: 'flex', gap: '-8px' }}>
                         {teamLeadersForThisTeam.map(tl => (
-                          <div key={tl.id} className="tl-avatar" style={{ border: '2px solid #1e1e2e' }}>{tl.name.charAt(0)}</div>
+                          <div key={tl.id} className="tl-avatar" style={{ border: '2px solid #1e1e2e', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.05)' }}>{tl.name.charAt(0)}</div>
                         ))}
                       </div>
                       <div>
                         <div className="tl-name">{teamLeadersForThisTeam.map(tl => tl.name).join(' & ')}</div>
                         <div className="tl-meta">قادة الفريق</div>
                       </div>
-                      <div className="tl-bookings" style={{ color }}>{bookings}</div>
                     </div>
-                    <div className="progress-bar-wrap">
-                      <div className="progress-bar-track">
-                        <div className="progress-bar-fill" style={{ width: `${percent}%`, background: color }} />
-                      </div>
-                      <span className="progress-pct" style={{ color }}>{progress.toFixed(1)}%</span>
+                    
+                    <div className="tl-leaders-progress" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      {teamLeadersForThisTeam.map(tl => {
+                        const stats = getTeamLeaderStats(tl.id);
+                        const progress = stats.progress;
+                        const percent = Math.min(progress, 100);
+                        const color = progress >= 100 ? '#22c55e' : progress >= 50 ? '#eab308' : '#ef4444';
+                        return (
+                          <div key={tl.id} className="tl-progress-row">
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '2px', color: 'rgba(255,255,255,0.7)' }}>
+                              <span>{tl.name}</span>
+                              <span style={{ color }}>{stats.bookings} / {stats.target} ({progress.toFixed(1)}%)</span>
+                            </div>
+                            <div className="progress-bar-wrap" style={{ margin: 0 }}>
+                              <div className="progress-bar-track" style={{ height: '6px' }}>
+                                <div className="progress-bar-fill" style={{ width: `${percent}%`, background: color }} />
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
-                    <div className="tl-stats">
-                      <span>العملاء: {total}</span>
-                      <span>الهدف: {target}</span>
+                    
+                    <div className="tl-stats" style={{ borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '8px', marginTop: '4px' }}>
+                      <span>إجمالي عملاء الفريق: {totalLeads}</span>
                     </div>
                   </div>
                 );

@@ -1,0 +1,116 @@
+
+> crm-app@0.0.0 lint
+> eslint .
+
+
+H:\Work\Main\crm-app\scripts\clearUsers.js
+  33:3   error  'process' is not defined  no-undef
+  36:44  error  'process' is not defined  no-undef
+
+H:\Work\Main\crm-app\scripts\seedFirestore.js
+  59:25  error  '_' is assigned a value but never used  no-unused-vars
+  87:3   error  'process' is not defined                no-undef
+  90:43  error  'process' is not defined                no-undef
+
+H:\Work\Main\crm-app\server.js
+   17:7   error  'process' is not defined  no-undef
+   19:18  error  'Buffer' is not defined   no-undef
+   19:30  error  'process' is not defined  no-undef
+   38:25  error  'process' is not defined  no-undef
+  124:14  error  'process' is not defined  no-undef
+
+H:\Work\Main\crm-app\src\App.jsx
+  1:8  error  'React' is defined but never used  no-unused-vars
+
+H:\Work\Main\crm-app\src\components\BusSelector.jsx
+   1:8   error  'React' is defined but never used          no-unused-vars
+  71:11  error  'cols' is assigned a value but never used  no-unused-vars
+
+H:\Work\Main\crm-app\src\components\Layout.jsx
+  1:8  error  'React' is defined but never used  no-unused-vars
+
+H:\Work\Main\crm-app\src\components\LeadModal.jsx
+   1:8   error  'React' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   no-unused-vars
+   2:10  error  'useAuth' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 no-unused-vars
+  15:12  error  'e' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       no-unused-vars
+  33:9   error  'defaultTL' is assigned a value but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      no-unused-vars
+  71:7   error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+  69 |   useEffect(() => {
+  70 |     if (form.date) {
+> 71 |       setViewDate(new Date(form.date));
+     |       ^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  72 |     }
+  73 |   }, [form.date]);
+  74 |  react-hooks/set-state-in-effect
+
+H:\Work\Main\crm-app\src\context\AuthContext.jsx
+   1:8   error  'React' is defined but never used                                                                                               no-unused-vars
+  79:17  error  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+H:\Work\Main\crm-app\src\context\DataContext.jsx
+    1:8   error  'React' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         no-unused-vars
+    3:27  error  'addDoc' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        no-unused-vars
+   23:61  error  'e' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             no-unused-vars
+   34:7   error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+  32 |   useEffect(() => {
+  33 |     if (!currentUser) {
+> 34 |       setLeads([]);
+     |       ^^^^^^^^ Avoid calling setState() directly within an effect
+  35 |       setTrips([]);
+  36 |       setUsers([]);
+  37 |       setIsLoading(false);  react-hooks/set-state-in-effect
+  182:17  error  '_' is assigned a value but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    no-unused-vars
+  190:17  error  '_' is assigned a value but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    no-unused-vars
+  246:17  error  '_' is assigned a value but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    no-unused-vars
+  296:17  error  '_' is assigned a value but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    no-unused-vars
+  332:14  error  'e' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             no-unused-vars
+  332:17  error  Empty block statement                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     no-empty
+  470:17  error  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            react-refresh/only-export-components
+
+H:\Work\Main\crm-app\src\pages\AgentDashboard.jsx
+  1:8  error  'React' is defined but never used  no-unused-vars
+
+H:\Work\Main\crm-app\src\pages\Agents.jsx
+   1:8   error    'React' is defined but never used                                                                            no-unused-vars
+  31:18  error    'getAgentStats' is assigned a value but never used                                                           no-unused-vars
+  34:47  warning  React Hook useMemo has a missing dependency: 'getRanking'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+H:\Work\Main\crm-app\src\pages\Dashboard.jsx
+   1:8   error    'React' is defined but never used                                                                               no-unused-vars
+  27:25  error    'getAgentStats' is assigned a value but never used                                                              no-unused-vars
+  56:6   warning  React Hook useMemo has a missing dependency: 'normalizeDate'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+H:\Work\Main\crm-app\src\pages\Leads.jsx
+  43:6  warning  React Hook useMemo has a missing dependency: 'getFilteredLeads'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+H:\Work\Main\crm-app\src\pages\Login.jsx
+  1:8  error  'React' is defined but never used  no-unused-vars
+
+H:\Work\Main\crm-app\src\pages\Trips.jsx
+   1:8  error    'React' is defined but never used                                                                                                                                  no-unused-vars
+  48:6  warning  React Hook useMemo has missing dependencies: 'currentUser.id', 'currentUser.role', and 'currentUser.username'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+
+H:\Work\Main\crm-app\src\pages\Users.jsx
+    1:8   error  'React' is defined but never used               no-unused-vars
+   13:7   error  'TARGET_TL' is assigned a value but never used  no-unused-vars
+  280:25  error  'pass' is assigned a value but never used       no-unused-vars
+
+H:\Work\Main\crm-app\test_db.js
+  25:3  error  'process' is not defined  no-undef
+
+✖ 47 problems (43 errors, 4 warnings)
+

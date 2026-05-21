@@ -204,6 +204,7 @@
   transition: all 0.2s;
 }
 
+.user-menu-item.profile:hover { background: rgba(99,102,241,0.15); color: #a5b4fc; }
 .user-menu-item.logout:hover { background: rgba(239,68,68,0.15); color: #fca5a5; }
 
 .logout-icon-btn {

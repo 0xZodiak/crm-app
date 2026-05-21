@@ -1,13 +1,24 @@
-import React, { useState } from 'react';
-import { useAuth } from '../context/AuthContext';
+import React, { useState, useEffect } from 'react';
 import { useData } from '../context/DataContext';
 import BusSelector from './BusSelector';
 import './LeadModal.css';
 
+const getArabicFormattedDate = (dateStr) => {
+  if (!dateStr) return { dayName: 'اختر التاريخ', dateDetails: 'يرجى تحديد موعد الانطلاق' };
+  try {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const dateObj = new Date(y, m - 1, d);
+    const dayName = dateObj.toLocaleDateString('ar-EG', { weekday: 'long' });
+    const dateDetails = dateObj.toLocaleDateString('ar-EG', { day: 'numeric', month: 'long', year: 'numeric' });
+    return { dayName, dateDetails };
+  } catch {
+    return { dayName: 'التاريخ', dateDetails: dateStr };
+  }
+};
+
 export default function LeadModal({ lead, users, currentUser, onSave, onClose }) {
   const { trips } = useData();
   const agentsAndTLs = users.filter(u => u.role === 'agent' || u.role === 'team_leader');
-  const teamLeaders = users.filter(u => u.role === 'team_leader');
 
   const getDefaultAgent = () => {
     if (currentUser?.role === 'agent' || currentUser?.role === 'team_leader') {
@@ -17,9 +28,6 @@ export default function LeadModal({ lead, users, currentUser, onSave, onClose })
   };
 
   const defaultAgent = lead ? agentsAndTLs.find(a => a.id === lead.agentId) || agentsAndTLs[0] : getDefaultAgent();
-  const defaultTL = lead
-    ? teamLeaders.find(t => t.id === lead.teamLeaderId) || teamLeaders[0]
-    : teamLeaders.find(t => t.id === defaultAgent?.teamLeaderId) || teamLeaders[0];
 
   const [form, setForm] = useState({
     name: lead?.name || '',
@@ -29,46 +37,137 @@ export default function LeadModal({ lead, users, currentUser, onSave, onClose })
     status: lead?.status || 'محتمل',
     agentId: defaultAgent?.id || '',
     agentName: defaultAgent?.name || '',
-    teamLeaderId: defaultTL?.id || '',
-    teamLeaderName: defaultTL?.name || '',
-    teamId: defaultAgent?.teamId || defaultTL?.teamId || '',
+    teamId: defaultAgent?.teamId || '',
     notes: lead?.notes || '',
     date: lead?.date || new Date().toISOString().split('T')[0],
-    destination: lead?.destination || 'مكة',
+    destination: lead?.busType === 'VIP 30' ? 'مكة' : (lead?.destination || 'مكة'),
     busType: lead?.busType || 'سياحي 49',
     bookingType: lead?.bookingType || 'عازب',
     memberCount: lead?.memberCount || 1,
     seats: lead?.seats || [],
-    stayType: lead?.stayType || 'إقامة',
-    makkahNights: lead?.makkahNights || 3,
+    stayType: lead?.busType === 'VIP 30' ? 'إقامة' : (lead?.stayType || 'إقامة'),
+    makkahNights: lead?.busType === 'VIP 30' ? 2 : (lead?.makkahNights || 3),
     madinahNights: lead?.madinahNights || 0,
   });
   const [errors, setErrors] = useState({});
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const [viewDate, setViewDate] = useState(form.date ? new Date(form.date) : new Date());
+
+  useEffect(() => {
+    const handleOutsideClick = () => {
+      setCalendarOpen(false);
+    };
+    window.addEventListener('click', handleOutsideClick);
+    return () => window.removeEventListener('click', handleOutsideClick);
+  }, []);
+
+  useEffect(() => {
+    if (form.date) {
+      setViewDate(new Date(form.date));
+    }
+  }, [form.date]);
+
+  const monthsArabic = [
+    'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
+    'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'
+  ];
+  const daysOfWeek = ['أحد', 'إثنين', 'ثلاثاء', 'أربعاء', 'خميس', 'جمعة', 'سبت'];
+
+  const getCalendarDays = () => {
+    if (!viewDate) return [];
+    const year = viewDate.getFullYear();
+    const month = viewDate.getMonth();
+    
+    const firstDayIndex = new Date(year, month, 1).getDay();
+    const totalDays = new Date(year, month + 1, 0).getDate();
+    const prevMonthDays = new Date(year, month, 0).getDate();
+    
+    const days = [];
+    
+    for (let i = firstDayIndex - 1; i >= 0; i--) {
+      const prevM = month === 0 ? 12 : month;
+      const prevY = month === 0 ? year - 1 : year;
+      days.push({
+        day: prevMonthDays - i,
+        isCurrentMonth: false,
+        dateString: `${prevY}-${String(prevM).padStart(2, '0')}-${String(prevMonthDays - i).padStart(2, '0')}`
+      });
+    }
+    
+    for (let i = 1; i <= totalDays; i++) {
+      days.push({
+        day: i,
+        isCurrentMonth: true,
+        dateString: `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`
+      });
+    }
+    
+    const remaining = 42 - days.length;
+    for (let i = 1; i <= remaining; i++) {
+      const nextM = month === 11 ? 1 : month + 2;
+      const nextY = month === 11 ? year + 1 : year;
+      days.push({
+        day: i,
+        isCurrentMonth: false,
+        dateString: `${nextY}-${String(nextM).padStart(2, '0')}-${String(i).padStart(2, '0')}`
+      });
+    }
+    
+    return days;
+  };
+
+  const prevMonth = (e) => {
+    e.stopPropagation();
+    setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1));
+  };
+
+  const nextMonth = (e) => {
+    e.stopPropagation();
+    setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1));
+  };
+
+  const goToday = (e) => {
+    e.stopPropagation();
+    const today = new Date();
+    const dateStr = today.toISOString().split('T')[0];
+    set('date', dateStr);
+    setViewDate(today);
+    setCalendarOpen(false);
+  };
+
+  const clearDate = (e) => {
+    e.stopPropagation();
+    set('date', '');
+    setCalendarOpen(false);
+  };
+
+  const handleSelectDay = (dateStr) => {
+    set('date', dateStr);
+    setCalendarOpen(false);
+  };
 
   const set = (key, val) => setForm(prev => ({ ...prev, [key]: val }));
 
   const handleAgentChange = (agentId) => {
     const agent = agentsAndTLs.find(a => a.id === agentId);
     if (!agent) return;
-    const tl = agent.role === 'team_leader' ? agent : teamLeaders.find(t => t.id === agent.teamLeaderId);
     setForm(prev => ({
       ...prev,
       agentId: agent.id,
       agentName: agent.name,
-      teamLeaderId: tl?.id || '',
-      teamLeaderName: tl?.name || '',
       teamId: agent.teamId || '',
     }));
   };
 
-  const matchingTrip = trips.find(t => t.date.startsWith(form.date) && t.busType === form.busType);
+  const expectedTripId = form.date && form.busType ? `${form.date}_${form.busType.replace(/\s/g, '_')}` : '';
+  const matchingTrip = trips.find(t => t.id === expectedTripId);
   const effectiveBusType = form.busType;
 
   const validate = () => {
     const e = {};
     if (!form.name.trim()) e.name = 'الاسم مطلوب';
     if (!form.phone.trim()) e.phone = 'رقم التليفون مطلوب';
-    else if (!/^0[0-9]{10}$/.test(form.phone.trim())) e.phone = 'رقم غير صحيح (11 رقم يبدأ بـ 0)';
+    else if (!/^(05|5|\+9665|9665)[0-9]{8}$/.test(form.phone.trim())) e.phone = 'رقم غير صحيح (يجب أن يبدأ بـ 05 أو 5 أو +966 ويتكون من 9 إلى 10 أرقام)';
     if (!form.agentId) e.agentId = 'اختر الإيجنت';
     if (!form.date) e.date = 'الموعد مطلوب';
     if (form.status === 'مؤكد' && !form.bookingDetails.trim()) e.bookingDetails = 'أدخل تفاصيل الحجز';
@@ -78,8 +177,15 @@ export default function LeadModal({ lead, users, currentUser, onSave, onClose })
     // VIP Rules
     if (form.busType === 'VIP 30') {
       if (form.destination !== 'مكة') e.destination = 'الباص VIP متاح لمكة فقط';
-      const day = new Date(form.date).getDay();
-      if (day !== 1 && day !== 4) e.date = 'باص VIP يخرج يومي الاثنين والخميس فقط';
+      if (form.stayType !== 'إقامة') e.stayType = 'الباص VIP يتطلب إقامة فندقية فقط';
+      if (form.makkahNights !== 2) e.makkahNights = 'الباص VIP يتطلب إقامة 2 ليلة (3 أيام) فقط';
+      if (form.date) {
+        const [y, m, d] = form.date.split('-').map(Number);
+        const day = new Date(y, m - 1, d).getDay();
+        if (day !== 1 && day !== 4) {
+          e.date = 'رحلات VIP تخرج يوم الاثنين (عودة الأربعاء) أو الخميس (عودة السبت) فقط';
+        }
+      }
     }
 
     setErrors(e);
@@ -113,7 +219,7 @@ export default function LeadModal({ lead, users, currentUser, onSave, onClose })
             {/* Phone */}
             <div className="modal-field">
               <label>رقم التليفون *</label>
-              <input type="tel" value={form.phone} onChange={e => set('phone', e.target.value)} placeholder="01xxxxxxxxx" dir="ltr" className={errors.phone ? 'error' : ''} />
+              <input type="tel" value={form.phone} onChange={e => set('phone', e.target.value)} placeholder="05xxxxxxxx أو +9665xxxxxxxx" dir="ltr" className={errors.phone ? 'error' : ''} />
               {errors.phone && <span className="field-error">{errors.phone}</span>}
             </div>
 
@@ -131,26 +237,117 @@ export default function LeadModal({ lead, users, currentUser, onSave, onClose })
             {form.status === 'مؤكد' && (
               <>
                 {/* Smart Trip Handling - Date & Destination Select */}
-                <div className="modal-field">
+                <div className="modal-field" style={{ position: 'relative' }}>
                   <label>تاريخ الانطلاق *</label>
-                  <input type="date" value={form.date} onChange={e => set('date', e.target.value)} />
+                  <div 
+                    className={`custom-date-picker-wrapper ${errors.date ? 'error' : ''}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setCalendarOpen(!calendarOpen);
+                    }}
+                  >
+                    {(() => {
+                      const { dayName, dateDetails } = getArabicFormattedDate(form.date);
+                      return (
+                        <div className="custom-date-card">
+                          <div className="date-icon-glow">📅</div>
+                          <div className="date-text-content">
+                            <span className="day-name-highlight">{dayName}</span>
+                            <span className="date-details-subtitle">{dateDetails}</span>
+                          </div>
+                          <div className="calendar-indicator">📅 تغيير</div>
+                        </div>
+                      );
+                    })()}
+                  </div>
                   {errors.date && <span className="field-error">{errors.date}</span>}
+
+                  {calendarOpen && (
+                    <div className="custom-calendar-dropdown" onClick={e => e.stopPropagation()}>
+                      <div className="cal-header">
+                        <button type="button" className="cal-nav-btn" onClick={prevMonth}>▶</button>
+                        <span className="cal-month-year">
+                          {monthsArabic[viewDate.getMonth()]} {viewDate.getFullYear()}
+                        </span>
+                        <button type="button" className="cal-nav-btn" onClick={nextMonth}>◀</button>
+                      </div>
+
+                      <div className="cal-weekdays">
+                        {daysOfWeek.map(d => (
+                          <div key={d} className="cal-weekday">{d}</div>
+                        ))}
+                      </div>
+
+                      <div className="cal-days-grid">
+                        {getCalendarDays().map((d, index) => {
+                          const isSelected = form.date === d.dateString;
+                          const isToday = new Date().toISOString().split('T')[0] === d.dateString;
+                          return (
+                            <button
+                              key={index}
+                              type="button"
+                              className={`cal-day-cell ${d.isCurrentMonth ? 'current' : 'outside'} ${isSelected ? 'selected' : ''} ${isToday ? 'today' : ''}`}
+                              onClick={() => handleSelectDay(d.dateString)}
+                            >
+                              {d.day}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      <div className="cal-footer">
+                        <button type="button" className="cal-footer-btn clear" onClick={clearDate}>مسح</button>
+                        <button type="button" className="cal-footer-btn today-btn" onClick={goToday}>اليوم</button>
+                      </div>
+                    </div>
+                  )}
                 </div>
+
+                {form.busType === 'VIP 30' && form.date && (() => {
+                  const [y, m, d] = form.date.split('-').map(Number);
+                  const day = new Date(y, m - 1, d).getDay();
+                  if (day === 1) {
+                    return (
+                      <div className="trip-hint-banner full-width">
+                        <span>ℹ️ رحلة الاثنين: العودة يوم الأربعاء (3 أيام)</span>
+                      </div>
+                    );
+                  } else if (day === 4) {
+                    return (
+                      <div className="trip-hint-banner full-width">
+                        <span>ℹ️ رحلة الخميس: العودة يوم السبت (3 أيام)</span>
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
 
                 <div className="modal-field">
                   <label>الوجهة</label>
-                  <select value={form.destination} onChange={e => set('destination', e.target.value)}>
+                  <select 
+                    value={form.destination} 
+                    onChange={e => set('destination', e.target.value)}
+                    disabled={form.busType === 'VIP 30'}
+                    className={form.busType === 'VIP 30' ? 'readonly' : ''}
+                  >
                     <option value="مكة">مكة</option>
                     <option value="مكة مدينة">مكة مدينة</option>
                   </select>
+                  {errors.destination && <span className="field-error">{errors.destination}</span>}
                 </div>
 
                 <div className="modal-field">
                   <label>نوع الحضور</label>
-                  <select value={form.stayType} onChange={e => set('stayType', e.target.value)}>
+                  <select 
+                    value={form.stayType} 
+                    onChange={e => set('stayType', e.target.value)}
+                    disabled={form.busType === 'VIP 30'}
+                    className={form.busType === 'VIP 30' ? 'readonly' : ''}
+                  >
                     <option value="إقامة">🏨 إقامة (فندق)</option>
                     <option value="زيارة">🚗 زيارة فقط</option>
                   </select>
+                  {errors.stayType && <span className="field-error">{errors.stayType}</span>}
                 </div>
 
                 <div className="modal-field">
@@ -160,7 +357,8 @@ export default function LeadModal({ lead, users, currentUser, onSave, onClose })
                     min="1"
                     value={form.makkahNights}
                     onChange={e => set('makkahNights', parseInt(e.target.value) || 0)}
-                    className={errors.makkahNights ? 'error' : ''}
+                    disabled={form.busType === 'VIP 30'}
+                    className={form.busType === 'VIP 30' ? 'readonly' : (errors.makkahNights ? 'error' : '')}
                   />
                   {errors.makkahNights && <span className="field-error">{errors.makkahNights}</span>}
                 </div>
@@ -201,11 +399,7 @@ export default function LeadModal({ lead, users, currentUser, onSave, onClose })
               </div>
             )}
 
-            {/* TL - read only */}
-            <div className="modal-field">
-              <label>التيم ليدر</label>
-              <input type="text" value={form.teamLeaderName} readOnly className="readonly" placeholder="يتحدد تلقائياً" />
-            </div>
+
 
             {/* Booking details - shown for confirmed */}
             {form.status === 'مؤكد' && (
@@ -241,7 +435,16 @@ export default function LeadModal({ lead, users, currentUser, onSave, onClose })
                 <div className="modal-field">
                   <label>نوع الباص</label>
                   <select value={form.busType} onChange={e => {
-                    setForm(prev => ({ ...prev, busType: e.target.value, seats: [] }));
+                    const bus = e.target.value;
+                    setForm(prev => {
+                      const updates = { busType: bus, seats: [] };
+                      if (bus === 'VIP 30') {
+                        updates.destination = 'مكة';
+                        updates.stayType = 'إقامة';
+                        updates.makkahNights = 1; // 2 days is exactly 1 night
+                      }
+                      return { ...prev, ...updates };
+                    });
                   }}>
                     <option value="سياحي 49">🚌 سياحي (49 كرسي)</option>
                     <option value="سياحي 51">🚌 سياحي (51 كرسي)</option>
@@ -257,7 +460,7 @@ export default function LeadModal({ lead, users, currentUser, onSave, onClose })
                       busType={effectiveBusType}
                       selectedSeats={form.seats}
                       memberCount={form.memberCount}
-                      tripId={matchingTrip?.id || 'new-trip-placeholder'}
+                      tripId={expectedTripId}
                       currentLeadId={lead?.id}
                       onSeatsChange={seats => set('seats', seats)}
                     />

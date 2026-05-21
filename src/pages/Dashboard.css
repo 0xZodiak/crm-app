@@ -7,7 +7,7 @@
 /* KPI Grid */
 .kpi-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 16px;
 }
 
@@ -50,6 +50,11 @@
 .kpi-card.pink {
   background: linear-gradient(135deg, rgba(236, 72, 153, 0.15), rgba(236, 72, 153, 0.05));
   border-color: rgba(236, 72, 153, 0.2);
+}
+
+.kpi-card.cyan {
+  background: linear-gradient(135deg, rgba(6, 182, 212, 0.15), rgba(6, 182, 212, 0.05));
+  border-color: rgba(6, 182, 212, 0.2);
 }
 
 .kpi-icon {

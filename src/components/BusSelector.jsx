@@ -68,7 +68,6 @@ export default function BusSelector({
 
   const renderSeats = () => {
     const seats = [];
-    const cols = busType === 'VIP 30' ? 3 : 4;
     
     for (let i = 1; i <= totalSeats; i++) {
       const isOccupied = occupiedSeats.includes(i);

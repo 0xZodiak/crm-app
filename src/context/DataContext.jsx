@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import {
-  collection, onSnapshot, addDoc, updateDoc, deleteDoc,
+  collection, onSnapshot, updateDoc, deleteDoc,
   doc, serverTimestamp, runTransaction, query, where, getDocs, setDoc, deleteField
 } from 'firebase/firestore';
 import { db } from '../firebase';
@@ -20,7 +20,7 @@ export function DataProvider({ children }) {
   // الـ notifications تفضل في localStorage لأنها UX محلي فقط
   const [notifications, setNotifications] = useState(() => {
     const stored = localStorage.getItem('crm_notifications');
-    if (stored) { try { return JSON.parse(stored); } catch (e) { return []; } }
+    if (stored) { try { return JSON.parse(stored); } catch { return []; } }
     return [];
   });
 
@@ -124,17 +124,45 @@ export function DataProvider({ children }) {
           }
         }
 
-        if (!trip.autoComplete) continue;
+        // 24-hour pre-return notification (before the trip comes back)
+        if (trip.status === 'Upcoming' || trip.status === 'Active') {
+          const hoursUntilReturn = (completionDate - now) / 3600000;
+          if (hoursUntilReturn > 0 && hoursUntilReturn <= 24) {
+            const returnNotifId = `notif_return_24h_${trip.id}`;
+            setNotifications(prev => {
+              if (prev.find(n => n.id === returnNotifId)) return prev;
+              const confirmed    = currentLeads.filter(l => l.tripId === trip.id && (l.status === 'مؤكد' || l.status === 'عميلنا'));
+              const message      = `تذكير: رحلة ${trip.name} (${trip.busType}) ستعود خلال 24 ساعة. يرجى المتابعة وتأكيد سلامة وصول الركاب (${confirmed.length} ركاب).`;
+              if ('Notification' in window && Notification.permission === 'granted') {
+                new Notification('تذكير عودة رحلة', { body: message });
+              }
+              return [{ id: returnNotifId, tripId: trip.id, message, createdAt: now.toISOString(), read: false, type: 'return' }, ...prev];
+            });
+          }
+        }
 
-        // Auto-complete trip after end date
-        if (now > completionDate && trip.status === 'Upcoming') {
-          await updateDoc(doc(db, 'trips', trip.id), { status: 'Completed' });
+        // Auto-archive trips whose departure date has passed by more than 3 days
+        const threeDaysAfterDeparture = new Date(tripDate.getTime() + 3 * 86400000);
+        if (now > threeDaysAfterDeparture && trip.status !== 'Completed' && trip.status !== 'Cancelled') {
+          await updateTrip(trip.id, { status: 'Completed' });
           const confirmed = currentLeads.filter(l => l.tripId === trip.id && l.status === 'مؤكد');
           for (const lead of confirmed) {
             await updateDoc(doc(db, 'leads', lead.id), { status: 'عميلنا' });
           }
-        } else if (now > tripDate && now < completionDate && trip.status === 'Upcoming') {
-          await updateDoc(doc(db, 'trips', trip.id), { status: 'Active' });
+        }
+
+        // Auto-complete trip after end date
+        if (now > completionDate) {
+          if (trip.status === 'Upcoming' && trip.autoComplete) {
+            await updateTrip(trip.id, { status: 'Completed' });
+          }
+          // Automatically transition confirmed leads on past trips to "عميلنا"
+          const confirmed = currentLeads.filter(l => l.tripId === trip.id && l.status === 'مؤكد');
+          for (const lead of confirmed) {
+            await updateDoc(doc(db, 'leads', lead.id), { status: 'عميلنا' });
+          }
+        } else if (now > tripDate && now < completionDate && trip.status === 'Upcoming' && trip.autoComplete) {
+          await updateTrip(trip.id, { status: 'Active' });
         }
       }
     };
@@ -200,7 +228,7 @@ export function DataProvider({ children }) {
   const addLead = async (leadData) => {
     let tripId = null;
 
-    if (leadData.status === 'مؤكد') {
+    if (leadData.status === 'مؤكد' || leadData.status === 'عميلنا') {
       tripId = await findOrCreateTrip(leadData.date, leadData.destination, leadData.busType);
     } else {
       delete leadData.destination;
@@ -240,14 +268,16 @@ export function DataProvider({ children }) {
   const updateLead = async (id, updates) => {
     const oldLead    = leads.find(l => l.id === id);
     const newLead    = { ...oldLead, ...updates };
-    let tripId       = null;
+    let tripId       = newLead.tripId || oldLead.tripId || null;
 
-    if (newLead.status === 'مؤكد') {
-      tripId = await findOrCreateTrip(
-        newLead.date        || oldLead.date,
-        newLead.destination || oldLead.destination,
-        newLead.busType     || oldLead.busType,
-      );
+    if (newLead.status === 'مؤكد' || newLead.status === 'عميلنا') {
+      if (!tripId) {
+        tripId = await findOrCreateTrip(
+          newLead.date        || oldLead.date,
+          newLead.destination || oldLead.destination,
+          newLead.busType     || oldLead.busType,
+        );
+      }
     } else {
       newLead.destination = deleteField();
       newLead.stayType = deleteField();
@@ -259,6 +289,7 @@ export function DataProvider({ children }) {
       newLead.seats = deleteField();
       newLead.bookingDetails = deleteField();
       newLead.bookingValue = deleteField();
+      tripId = null;
     }
 
     newLead.tripId = tripId;
@@ -298,12 +329,30 @@ export function DataProvider({ children }) {
     try {
       const d = new Date(dateStr);
       if (!isNaN(d.getTime())) return d.toISOString().split('T')[0];
-    } catch (e) {}
+    } catch {
+      // Ignore invalid date parsing
+    }
     return dateStr;
   };
 
   const getFilteredLeads = (filters, currentUser) => {
     let filtered = [...leads];
+
+    // Sort leads chronologically (oldest first / FIFO)
+    const getLeadTime = (lead) => {
+      if (lead.createdAt) {
+        if (typeof lead.createdAt.toMillis === 'function') return lead.createdAt.toMillis();
+        if (lead.createdAt.seconds) return lead.createdAt.seconds * 1000;
+        const t = new Date(lead.createdAt).getTime();
+        if (!isNaN(t)) return t;
+      }
+      if (lead.addedDate) {
+        const t = new Date(lead.addedDate).getTime();
+        if (!isNaN(t)) return t;
+      }
+      return 0;
+    };
+    filtered.sort((a, b) => getLeadTime(b) - getLeadTime(a));
 
     if (currentUser.role === 'agent') {
       filtered = filtered.filter(l => l.agentId === currentUser.id);
@@ -362,7 +411,7 @@ export function DataProvider({ children }) {
     if (dFrom) agentLeads = agentLeads.filter(l => normalizeDate(l.addedDate) >= dFrom);
     if (dTo)   agentLeads = agentLeads.filter(l => normalizeDate(l.addedDate) <= dTo);
 
-    const bookings = agentLeads.filter(l => l.status === 'مؤكد').length;
+    const bookings = agentLeads.filter(l => l.status === 'مؤكد' || l.status === 'عميلنا').length;
     const TARGET   = 150;
     const progress = (bookings / TARGET) * 100;
     const commission = bookings > TARGET ? (bookings - TARGET) * 20 : 0;
@@ -376,14 +425,15 @@ export function DataProvider({ children }) {
   };
 
   const getTeamLeaderStats = (tlId) => {
-    let tlLeads = leads.filter(l => l.teamLeaderId === tlId);
+    const tlAgents = users.filter(u => u.teamLeaderId === tlId || u.id === tlId).map(u => u.id);
+    let tlLeads = leads.filter(l => tlAgents.includes(l.agentId));
     const dFrom = normalizeDate(globalDateFrom);
     const dTo   = normalizeDate(globalDateTo);
 
     if (dFrom) tlLeads = tlLeads.filter(l => normalizeDate(l.addedDate) >= dFrom);
     if (dTo)   tlLeads = tlLeads.filter(l => normalizeDate(l.addedDate) <= dTo);
 
-    const bookings    = tlLeads.filter(l => l.status === 'مؤكد').length;
+    const bookings    = tlLeads.filter(l => l.status === 'مؤكد' || l.status === 'عميلنا').length;
     const TARGET      = 200;
     const directLeads = tlLeads.filter(l => l.agentId === tlId);
 
@@ -392,7 +442,7 @@ export function DataProvider({ children }) {
 
 
   const getRanking = () => {
-    const agents = users.filter(u => u.role === 'agent');
+    const agents = users.filter(u => u.role === 'agent' || u.role === 'team_leader');
     return agents
       .map(agent => ({ ...agent, ...getAgentStats(agent.id) }))
       .sort((a, b) => b.bookings - a.bookings)

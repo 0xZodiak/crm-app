@@ -52,12 +52,12 @@ export default function AgentDashboard() {
     return filtered;
   }, [leads, currentUser.id, globalDateFrom, globalDateTo]);
 
-  const bookings  = myLeads.filter(l => l.status === 'مؤكد').length;
+  const bookings  = myLeads.filter(l => l.status === 'مؤكد' || l.status === 'عميلنا').length;
   const interested = myLeads.filter(l => l.status === 'مهتم').length;
   const potential  = myLeads.filter(l => l.status === 'محتمل').length;
   const pct        = Math.round((bookings / TARGET) * 1000) / 10; // one decimal
   const totalValue = myLeads
-    .filter(l => l.status === 'مؤكد')
+    .filter(l => l.status === 'مؤكد' || l.status === 'عميلنا')
     .reduce((sum, l) => sum + (Number(l.bookingValue) || 0), 0);
   const commission = bookings > TARGET ? (bookings - TARGET) * 20 : 0;
   const color      = ProgressColor(pct);

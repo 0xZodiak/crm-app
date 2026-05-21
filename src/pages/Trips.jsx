@@ -4,8 +4,23 @@ import { useAuth } from '../context/AuthContext';
 import BusSelector from '../components/BusSelector';
 import './Trips.css';
 
+const getWhatsAppLink = (phone) => {
+  if (!phone) return '#';
+  let cleaned = phone.replace(/[^0-9]/g, '');
+  if (cleaned.startsWith('966')) {
+    // already ok
+  } else if (cleaned.startsWith('05') && cleaned.length === 10) {
+    cleaned = '966' + cleaned.substring(1);
+  } else if (cleaned.startsWith('5') && cleaned.length === 9) {
+    cleaned = '966' + cleaned;
+  } else if (cleaned.startsWith('01') && cleaned.length === 11) {
+    cleaned = '20' + cleaned.substring(1);
+  }
+  return `https://api.whatsapp.com/send?phone=${cleaned}`;
+};
+
 export default function Trips() {
-  const { trips, leads, addTrip, updateTrip, deleteTrip } = useData();
+  const { trips, leads, addTrip, updateTrip, deleteTrip, updateLead } = useData();
   const { currentUser } = useAuth();
   
   const [activeTab, setActiveTab] = useState('upcoming');
@@ -16,6 +31,7 @@ export default function Trips() {
   const [filters, setFilters] = useState({ search: '', status: '', bus: '' });
 
   const canManage = currentUser.role === 'admin' || currentUser.role === 'team_leader';
+  const canArchive = currentUser.role === 'admin' || currentUser.username === 'hamza' || currentUser.id === 'hamza';
 
   const filteredTrips = useMemo(() => {
     return trips.filter(t => {
@@ -24,7 +40,7 @@ export default function Trips() {
       const matchesStatus = filters.status ? t.status === filters.status : true;
       const matchesBus = filters.bus ? t.busType === filters.bus : true;
       
-      const isTabMatch = (activeTab === 'archive' && currentUser.role === 'admin') ? (t.status === 'Completed' || t.status === 'Cancelled') : 
+      const isTabMatch = (activeTab === 'archive' && (currentUser.role === 'admin' || currentUser.username === 'hamza' || currentUser.id === 'hamza')) ? (t.status === 'Completed' || t.status === 'Cancelled') : 
                          activeTab === 'upcoming' ? (t.status === 'Upcoming' || t.status === 'Active') : true;
 
       return matchesSearch && matchesStatus && matchesBus && isTabMatch;
@@ -32,7 +48,7 @@ export default function Trips() {
   }, [trips, filters, activeTab]);
 
   const selectedTrip = trips.find(t => t.id === selectedTripId);
-  const tripLeads = leads.filter(l => l.tripId === selectedTrip?.id && l.status === 'مؤكد');
+  const tripLeads = leads.filter(l => l.tripId === selectedTrip?.id && (l.status === 'مؤكد' || l.status === 'عميلنا'));
 
   const handleOpenEdit = (trip = null) => {
     if (trip) {
@@ -64,9 +80,11 @@ export default function Trips() {
         alert('مدة رحلة VIP يجب أن تكون 3 أيام فقط');
         return;
       }
-      const day = new Date(editTrip.date).getDay();
+      const dateOnly = editTrip.date.split('T')[0];
+      const [y, m, d] = dateOnly.split('-').map(Number);
+      const day = new Date(y, m - 1, d).getDay();
       if (day !== 1 && day !== 4) {
-        alert('باص VIP يخرج يومي الاثنين والخميس فقط');
+        alert('رحلات VIP تخرج يوم الاثنين (عودة الأربعاء) أو الخميس (عودة السبت) فقط');
         return;
       }
     }
@@ -108,7 +126,7 @@ export default function Trips() {
 
       <div className="trips-tabs">
         <button className={activeTab === 'upcoming' ? 'active' : ''} onClick={() => setActiveTab('upcoming')}>الرحلات الحالية والقادمة</button>
-        {currentUser.role === 'admin' && (
+        {(currentUser.role === 'admin' || currentUser.username === 'hamza' || currentUser.id === 'hamza') && (
           <button className={activeTab === 'archive' ? 'active' : ''} onClick={() => setActiveTab('archive')}>الأرشيف (المنتهية)</button>
         )}
       </div>
@@ -186,16 +204,51 @@ export default function Trips() {
                 </td>
                 <td>
                   <div className="booking-stat">
-                    <strong>{leads.filter(l => l.tripId === trip.id && l.status === 'مؤكد').length}</strong>
+                    <strong>{leads.filter(l => l.tripId === trip.id && (l.status === 'مؤكد' || l.status === 'عميلنا')).length}</strong>
                     <span>حجز</span>
                   </div>
                 </td>
                 <td className="actions-cell">
-                  <button className="view-btn" onClick={() => setSelectedTripId(trip.id)}>عرض التفاصيل</button>
+                  <button className="view-btn" onClick={() => setSelectedTripId(prev => prev === trip.id ? null : trip.id)}>عرض التفاصيل</button>
+                  
+                  {canArchive && trip.status !== 'Completed' && trip.status !== 'Cancelled' && (
+                    <button 
+                      className="archive-trip-btn"
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        if (window.confirm(`هل أنت متأكد من أرشفة رحلة "${trip.name}" ونقل كافة عملائها إلى "عملاؤنا"؟`)) {
+                          try {
+                            await updateTrip(trip.id, { status: 'Completed' });
+                            const tripLeadsToArchive = leads.filter(l => l.tripId === trip.id && (l.status === 'مؤكد' || l.status === 'عميلنا'));
+                            for (const lead of tripLeadsToArchive) {
+                              await updateLead(lead.id, { status: 'عميلنا' });
+                            }
+                            alert('تمت أرشفة الرحلة بنجاح ونقل جميع الركاب إلى عملاؤنا!');
+                          } catch (err) {
+                            alert('حدث خطأ: ' + err.message);
+                          }
+                        }
+                      }}
+                      style={{
+                        background: 'rgba(239, 68, 68, 0.1)',
+                        border: '1px solid rgba(239, 68, 68, 0.3)',
+                        color: '#fca5a5',
+                        padding: '6px 12px',
+                        borderRadius: '6px',
+                        fontSize: '12px',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                        marginLeft: '8px'
+                      }}
+                    >
+                      📦 أرشفة
+                    </button>
+                  )}
+
                   {canManage && (
-                    <div className="actions-cell">
+                    <div className="actions-cell" style={{ display: 'inline-flex', gap: '6px', marginRight: '6px' }}>
                       <button className="edit-icon-btn" onClick={() => handleOpenEdit(trip)}>✏️</button>
-                      {(trip.status === 'Completed' || trip.status === 'Cancelled') && currentUser.role === 'admin' && (
+                      {(trip.status === 'Completed' || trip.status === 'Cancelled') && (currentUser.role === 'admin' || currentUser.username === 'hamza' || currentUser.id === 'hamza') && (
                         <button className="restore-btn" onClick={() => updateTrip(trip.id, { status: 'Upcoming' })}>🔄 استعادة</button>
                       )}
                     </div>
@@ -229,7 +282,7 @@ export default function Trips() {
                     memberCount={1}
                     onSeatsChange={() => {}} // Read-only view for admin
                     currentLeadId="admin-view"
-                 />
+                  />
               </div>
             </div>
             
@@ -239,18 +292,50 @@ export default function Trips() {
                 {tripLeads.length === 0 ? (
                   <div className="empty-passengers">لا توجد حجوزات مؤكدة لهذه الرحلة بعد.</div>
                 ) : (
-                  tripLeads.map(lead => (
-                    <div key={lead.id} className="passenger-card">
-                      <div className="p-info">
-                        <span className="p-name">{lead.name}</span>
-                        <span className="p-seats">المقاعد: {lead.seats?.join(', ')}</span>
+                  tripLeads.map(lead => {
+                    return (
+                      <div key={lead.id} className="passenger-card">
+                        <div className="p-info">
+                          <span className="p-name">{lead.name}</span>
+                          <span className="p-seats">المقاعد: {lead.seats?.join(', ')}</span>
+                        </div>
+                        <div className="p-phone-wa" style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: '4px 0' }}>
+                          <span className="p-phone" style={{ fontSize: '13px', color: '#94a3b8' }}>📱 {lead.phone}</span>
+                          {lead.phone && (
+                            <a 
+                              href={getWhatsAppLink(lead.phone)} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="whatsapp-btn"
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                background: '#25D366',
+                                color: 'white',
+                                borderRadius: '50%',
+                                width: '20px',
+                                height: '20px',
+                                fontSize: '10px',
+                                lineHeight: 1,
+                                textDecoration: 'none',
+                                boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                                transition: 'transform 0.2s',
+                              }}
+                              title="واتساب"
+                              onClick={e => e.stopPropagation()}
+                            >
+                              💬
+                            </a>
+                          )}
+                        </div>
+                        <div className="p-meta">
+                          <span className="p-ref">{lead.bookingDetails}</span>
+                          <span className="p-agent">بواسطة: {lead.agentName}</span>
+                        </div>
                       </div>
-                      <div className="p-meta">
-                        <span className="p-ref">{lead.bookingDetails}</span>
-                        <span className="p-agent">بواسطة: {lead.agentName}</span>
-                      </div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
             </div>

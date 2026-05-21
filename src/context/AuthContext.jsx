@@ -3,8 +3,11 @@ import {
   signInWithEmailAndPassword,
   signOut,
   onAuthStateChanged,
+  updatePassword,
+  EmailAuthProvider,
+  reauthenticateWithCredential,
 } from 'firebase/auth';
-import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, getDoc, updateDoc } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 
 const AuthContext = createContext(null);
@@ -65,12 +68,67 @@ export function AuthProvider({ children }) {
     }
   };
 
+  const updateProfileData = async (newName, newPassword, oldPassword) => {
+    try {
+      const user = auth.currentUser;
+      if (!user) throw new Error('مستخدم غير مسجل الدخول');
+
+      // 1. إذا كان يريد تغيير كلمة المرور، يجب إعادة التحقق من كلمة المرور القديمة أولاً
+      if (newPassword && newPassword.trim() !== '') {
+        if (!oldPassword) {
+          throw new Error('يرجى إدخال كلمة المرور القديمة أولاً لتأكيد هويتك');
+        }
+        
+        try {
+          const credential = EmailAuthProvider.credential(user.email, oldPassword);
+          await reauthenticateWithCredential(user, credential);
+        } catch (authErr) {
+          console.error(authErr);
+          if (authErr.code === 'auth/wrong-password' || authErr.code === 'auth/invalid-credential') {
+            throw new Error('كلمة المرور القديمة غير صحيحة', { cause: authErr });
+          }
+          throw new Error('فشل التحقق من كلمة المرور القديمة، يرجى المحاولة مرة أخرى', { cause: authErr });
+        }
+      }
+
+      // 2. تحديث الاسم وكلمة المرور في Firestore
+      const updateData = {};
+      if (newName && newName.trim() !== currentUser.name) {
+        updateData.name = newName.trim();
+      }
+      if (newPassword && newPassword.trim() !== '') {
+        updateData.password = newPassword.trim();
+      }
+
+      if (Object.keys(updateData).length > 0) {
+        await updateDoc(doc(db, 'users', user.uid), updateData);
+        setCurrentUser(prev => prev ? { ...prev, ...updateData } : null);
+      }
+
+      // 3. تحديث كلمة المرور في Firebase Auth
+      if (newPassword && newPassword.trim() !== '') {
+        await updatePassword(user, newPassword.trim());
+      }
+
+      return { success: true };
+    } catch (err) {
+      console.error(err);
+      let msg = 'حدث خطأ أثناء التحديث';
+      if (err.code === 'auth/requires-recent-login') {
+        msg = 'لتغيير كلمة المرور، يرجى تسجيل الخروج والدخول مجدداً ثم المحاولة مرة أخرى.';
+      } else if (err.message) {
+        msg = err.message;
+      }
+      return { success: false, error: msg };
+    }
+  };
+
   const logout = async () => {
     await signOut(auth);
   };
 
   return (
-    <AuthContext.Provider value={{ currentUser, login, logout, loading }}>
+    <AuthContext.Provider value={{ currentUser, login, logout, updateProfileData, loading }}>
       {!loading && children}
     </AuthContext.Provider>
   );

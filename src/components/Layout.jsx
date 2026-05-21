@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
+import ProfileModal from './ProfileModal';
 import './Layout.css';
 
 const NAV_ITEMS = [
@@ -16,7 +17,10 @@ export default function Layout({ children, activePage, setActivePage }) {
   const { globalDateFrom, setGlobalDateFrom, globalDateTo, setGlobalDateTo, notifications, markNotificationRead } = useData();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
+  const [notifTab, setNotifTab] = useState('departure'); // 'departure' or 'return'
+  
   const handleGlobalDateChange = (type, val) => {
     if (type === 'from') {
       if (globalDateTo && val > globalDateTo) {
@@ -31,7 +35,11 @@ export default function Layout({ children, activePage, setActivePage }) {
     }
   };
 
+  const isReturnNotif = (n) => n.type === 'return' || n.message?.includes('ستعود') || n.message?.includes('عودة');
+
   const unreadCount = notifications?.filter(n => !n.read).length || 0;
+  const unreadDepartureCount = notifications?.filter(n => !n.read && !isReturnNotif(n)).length || 0;
+  const unreadReturnCount = notifications?.filter(n => !n.read && isReturnNotif(n)).length || 0;
 
   const roleLabel = {
     admin: { label: 'مدير النظام', color: '#fbbf24', icon: '👑' },
@@ -84,13 +92,19 @@ export default function Layout({ children, activePage, setActivePage }) {
           )}
           {userMenuOpen && sidebarOpen && (
             <div className="user-menu">
+              <button className="user-menu-item profile" onClick={() => { setProfileOpen(true); setUserMenuOpen(false); }}>
+                👤 الملف الشخصي
+              </button>
               <button className="user-menu-item logout" onClick={logout}>
                 🚪 تسجيل الخروج
               </button>
             </div>
           )}
           {!sidebarOpen && (
-            <button className="logout-icon-btn" onClick={logout} title="تسجيل الخروج">🚪</button>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'center' }}>
+              <button className="logout-icon-btn" onClick={() => setProfileOpen(true)} title="الملف الشخصي" style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>👤</button>
+              <button className="logout-icon-btn" onClick={logout} title="تسجيل الخروج">🚪</button>
+            </div>
           )}
         </div>
       </aside>
@@ -138,19 +152,106 @@ export default function Layout({ children, activePage, setActivePage }) {
               </button>
 
               {notifOpen && (
-                <div className="notif-dropdown" style={{ position: 'absolute', left: 0, top: '45px', width: '320px', background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', zIndex: 100, boxShadow: '0 10px 25px rgba(0,0,0,0.5)', overflow: 'hidden' }}>
-                  <div className="notif-header" style={{ padding: '12px 16px', borderBottom: '1px solid rgba(255,255,255,0.1)', fontWeight: 'bold' }}>الإشعارات والتذكيرات</div>
+                <div className="notif-dropdown" style={{ position: 'absolute', left: 0, top: '45px', width: '340px', background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', zIndex: 100, boxShadow: '0 10px 25px rgba(0,0,0,0.5)', overflow: 'hidden' }}>
+                  <div className="notif-header" style={{ padding: '12px 16px', borderBottom: '1px solid rgba(255,255,255,0.1)', fontWeight: 'bold', fontSize: '14px', textAlign: 'center' }}>الإشعارات والتذكيرات</div>
+                  
+                  {/* Tabs for Going (Departure) and Coming back (Return) */}
+                  <div className="notif-tabs" style={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,0.1)', background: 'rgba(0,0,0,0.1)' }}>
+                    <button 
+                      onClick={() => setNotifTab('departure')} 
+                      style={{ 
+                        flex: 1, 
+                        padding: '10px 6px', 
+                        background: notifTab === 'departure' ? 'rgba(59,130,246,0.15)' : 'transparent', 
+                        border: 'none', 
+                        borderBottom: notifTab === 'departure' ? '3px solid #3b82f6' : '3px solid transparent', 
+                        color: notifTab === 'departure' ? '#60a5fa' : 'rgba(255,255,255,0.6)', 
+                        fontWeight: 'bold', 
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px',
+                        fontSize: '12px',
+                        transition: 'all 0.2s',
+                        fontFamily: 'inherit'
+                      }}
+                    >
+                      🛫 الذهاب
+                      {unreadDepartureCount > 0 && (
+                        <span style={{ background: '#ef4444', color: 'white', fontSize: '9px', minWidth: '16px', height: '16px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>
+                          {unreadDepartureCount}
+                        </span>
+                      )}
+                    </button>
+                    <button 
+                      onClick={() => setNotifTab('return')} 
+                      style={{ 
+                        flex: 1, 
+                        padding: '10px 6px', 
+                        background: notifTab === 'return' ? 'rgba(59,130,246,0.15)' : 'transparent', 
+                        border: 'none', 
+                        borderBottom: notifTab === 'return' ? '3px solid #3b82f6' : '3px solid transparent', 
+                        color: notifTab === 'return' ? '#60a5fa' : 'rgba(255,255,255,0.6)', 
+                        fontWeight: 'bold', 
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px',
+                        fontSize: '12px',
+                        transition: 'all 0.2s',
+                        fontFamily: 'inherit'
+                      }}
+                    >
+                      🛬 العودة
+                      {unreadReturnCount > 0 && (
+                        <span style={{ background: '#ef4444', color: 'white', fontSize: '9px', minWidth: '16px', height: '16px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>
+                          {unreadReturnCount}
+                        </span>
+                      )}
+                    </button>
+                  </div>
+
                   <div className="notif-list" style={{ maxHeight: '350px', overflowY: 'auto' }}>
-                    {notifications?.length === 0 ? (
-                      <div style={{ padding: '20px', textAlign: 'center', color: 'rgba(255,255,255,0.5)', fontSize: '13px' }}>لا توجد إشعارات</div>
-                    ) : (
-                      notifications?.map(n => (
-                        <div key={n.id} className={`notif-item ${!n.read ? 'unread' : ''}`} style={{ padding: '12px 16px', borderBottom: '1px solid rgba(255,255,255,0.05)', background: n.read ? 'transparent' : 'rgba(59,130,246,0.1)', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '6px' }} onClick={() => markNotificationRead(n.id)}>
+                    {(() => {
+                      const filteredNotifs = notifications?.filter(n => {
+                        const isReturn = isReturnNotif(n);
+                        if (notifTab === 'departure') {
+                          return !isReturn;
+                        } else {
+                          return isReturn;
+                        }
+                      }) || [];
+
+                      if (filteredNotifs.length === 0) {
+                        return (
+                          <div style={{ padding: '30px 20px', textAlign: 'center', color: 'rgba(255,255,255,0.5)', fontSize: '13px' }}>
+                            {notifTab === 'departure' ? 'لا توجد تنبيهات للذهاب' : 'لا توجد تنبيهات للعودة'}
+                          </div>
+                        );
+                      }
+
+                      return filteredNotifs.map(n => (
+                        <div 
+                          key={n.id} 
+                          className={`notif-item ${!n.read ? 'unread' : ''}`} 
+                          style={{ 
+                            padding: '12px 16px', 
+                            borderBottom: '1px solid rgba(255,255,255,0.05)', 
+                            background: n.read ? 'transparent' : 'rgba(59,130,246,0.1)', 
+                            cursor: 'pointer', 
+                            display: 'flex', 
+                            flexDirection: 'column', 
+                            gap: '6px' 
+                          }} 
+                          onClick={() => markNotificationRead(n.id)}
+                        >
                           <span style={{ fontSize: '13px', color: 'white', lineHeight: 1.5 }}>{n.message}</span>
                           <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)' }}>{new Date(n.createdAt).toLocaleString('ar-EG')}</span>
                         </div>
-                      ))
-                    )}
+                      ));
+                    })()}
                   </div>
                 </div>
               )}
@@ -163,6 +264,7 @@ export default function Layout({ children, activePage, setActivePage }) {
           {children}
         </div>
       </main>
+      {profileOpen && <ProfileModal onClose={() => setProfileOpen(false)} />}
     </div>
   );
 }

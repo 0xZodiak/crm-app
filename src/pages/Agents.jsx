@@ -28,7 +28,7 @@ function CircularProgress({ percent, color, size = 90 }) {
 }
 
 export default function Agents() {
-  const { users, getAgentStats, getRanking } = useData();
+  const { users, getRanking } = useData();
   const { currentUser } = useAuth();
 
   const ranking = useMemo(() => getRanking(), [users]);

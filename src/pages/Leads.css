@@ -4,6 +4,47 @@
   gap: 16px;
 }
 
+/* Tabs styling */
+.leads-tabs {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding-bottom: 12px;
+}
+
+.leads-tabs button {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 15px;
+  font-weight: 600;
+  padding: 8px 16px;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.3s ease;
+  font-family: 'Cairo', sans-serif;
+}
+
+.leads-tabs button.active {
+  color: #818cf8;
+}
+
+.leads-tabs button.active::after {
+  content: '';
+  position: absolute;
+  bottom: -13px;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #6366f1, #8b5cf6);
+  border-radius: 3px 3px 0 0;
+}
+
+.leads-tabs button:hover {
+  color: white;
+}
+
 /* Filters bar */
 .filters-bar {
   display: flex;

@@ -11,6 +11,21 @@ const STATUS_COLORS = {
   'عميلنا': { bg: 'rgba(139,92,246,0.15)', color: '#a78bfa', border: 'rgba(139,92,246,0.3)' },
 };
 
+const getWhatsAppLink = (phone) => {
+  if (!phone) return '#';
+  let cleaned = phone.replace(/[^0-9]/g, '');
+  if (cleaned.startsWith('966')) {
+    // already ok
+  } else if (cleaned.startsWith('05') && cleaned.length === 10) {
+    cleaned = '966' + cleaned.substring(1);
+  } else if (cleaned.startsWith('5') && cleaned.length === 9) {
+    cleaned = '966' + cleaned;
+  } else if (cleaned.startsWith('01') && cleaned.length === 11) {
+    cleaned = '20' + cleaned.substring(1);
+  }
+  return `https://api.whatsapp.com/send?phone=${cleaned}`;
+};
+
 export default function Leads() {
   const { leads, users, trips, addLead, updateLead, deleteLead, getFilteredLeads } = useData();
   const { currentUser } = useAuth();
@@ -22,8 +37,10 @@ export default function Leads() {
   const [currentPage, setCurrentPage] = useState(1);
   const PER_PAGE = 15;
 
-  const agents = users.filter(u => u.role === 'agent');
-  const filtered = useMemo(() => getFilteredLeads(filters, currentUser), [leads, filters, currentUser]);
+  const agents = users.filter(u => u.role === 'agent' || u.role === 'team_leader');
+  const filtered = useMemo(() => {
+    return getFilteredLeads(filters, currentUser);
+  }, [leads, filters, currentUser]);
   const totalPages = Math.ceil(filtered.length / PER_PAGE);
   const paginated = filtered.slice((currentPage - 1) * PER_PAGE, currentPage * PER_PAGE);
 
@@ -58,7 +75,7 @@ export default function Leads() {
 
   const canEdit = (lead) => {
     if (currentUser.role === 'admin') return true;
-    if (currentUser.role === 'team_leader') return lead.teamLeaderId === currentUser.id;
+    if (currentUser.role === 'team_leader') return lead.teamId === currentUser.teamId;
     return lead.agentId === currentUser.id;
   };
 
@@ -106,7 +123,7 @@ export default function Leads() {
             <option value="محتمل">محتمل (Lead)</option>
             <option value="مهتم">مهتم (Pending)</option>
             <option value="مؤكد">مؤكد (Confirmed)</option>
-            <option value="عميلنا">عميلنا (Our Customer)</option>
+            <option value="عميلنا">عملائنا (Completed)</option>
           </select>
 
           {currentUser.role !== 'agent' && (
@@ -167,7 +184,6 @@ export default function Leads() {
               <th>الرحلة / الموعد</th>
               <th>تفاصيل الحجز</th>
               <th>الإيجنت</th>
-              <th>التيم ليدر</th>
               <th>تاريخ الإضافة</th>
               <th>الإجراءات</th>
             </tr>
@@ -175,7 +191,7 @@ export default function Leads() {
           <tbody>
             {paginated.length === 0 ? (
               <tr>
-                <td colSpan={10} className="empty-row">
+                <td colSpan={9} className="empty-row">
                   <div className="empty-state">
                     <span>📭</span>
                     <p>لا توجد نتائج مطابقة</p>
@@ -188,7 +204,38 @@ export default function Leads() {
                 <tr key={lead.id} className="lead-row">
                   <td className="row-num">{(currentPage - 1) * PER_PAGE + i + 1}</td>
                   <td className="lead-name">{lead.name}</td>
-                  <td className="lead-phone" dir="ltr">{lead.phone}</td>
+                  <td className="lead-phone" dir="ltr">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span>{lead.phone}</span>
+                      {lead.phone && (
+                        <a 
+                          href={getWhatsAppLink(lead.phone)} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="whatsapp-btn"
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            background: '#25D366',
+                            color: 'white',
+                            borderRadius: '50%',
+                            width: '22px',
+                            height: '22px',
+                            fontSize: '12px',
+                            lineHeight: 1,
+                            textDecoration: 'none',
+                            boxShadow: '0 2px 5px rgba(0,0,0,0.2)',
+                            transition: 'transform 0.2s',
+                          }}
+                          title="واتساب"
+                          onClick={e => e.stopPropagation()}
+                        >
+                          💬
+                        </a>
+                      )}
+                    </div>
+                  </td>
                   <td>
                     <span className="status-badge" style={{ background: sc.bg, color: sc.color, border: `1px solid ${sc.border}` }}>
                       {lead.status}
@@ -219,7 +266,6 @@ export default function Leads() {
                     )}
                   </td>
                   <td>{lead.agentName}</td>
-                  <td>{lead.teamLeaderName}</td>
                   <td className="date-cell">{lead.addedDate}</td>
                   <td className="actions-cell">
                     {canEdit(lead) && (

@@ -10,7 +10,6 @@ const ROLE_LABELS = {
 };
 
 const TARGET_AGENT = 150;
-const TARGET_TL    = 200;
 
 function progressColor(pct) {
   if (pct >= 110) return '#8b5cf6';
@@ -65,7 +64,26 @@ export default function Users() {
   
   const isAdmin = currentUser.role === 'admin';
 
-  const admins      = users.filter(u => u.role === 'admin');
+  const adminOrder = {
+    'sharif': 1,
+    'abdelazim': 2,
+    'hazem': 3
+  };
+
+  const admins = users
+    .filter(u => u.role === 'admin')
+    .sort((a, b) => {
+      const orderA = adminOrder[a.username] || 99;
+      const orderB = adminOrder[b.username] || 99;
+      return orderA - orderB;
+    });
+
+  const getAdminDisplayName = (admin) => {
+    if (admin.username === 'abdelazim') return 'م / عبد العظيم';
+    if (admin.username === 'hazem') return 'م / حازم';
+    if (admin.username === 'sharif') return 'الحج شريف';
+    return admin.name;
+  };
   let tls           = users.filter(u => u.role === 'team_leader');
   
   if (!isAdmin) {
@@ -101,15 +119,19 @@ export default function Users() {
         <div className="admins-strip">
           <h3 className="section-title">👑 المديرون</h3>
           <div className="admins-row">
-            {admins.map(admin => (
-              <div key={admin.id} className="admin-chip">
-                <div className="admin-avatar">{admin.name.charAt(0)}</div>
-                <div>
-                  <div className="admin-name">{admin.name}</div>
-                  <div className="admin-role">مدير النظام</div>
+            {admins.map(admin => {
+              const displayName = getAdminDisplayName(admin);
+              const avatarLetter = displayName.replace('م / ', '').charAt(0);
+              return (
+                <div key={admin.id} className="admin-chip">
+                  <div className="admin-avatar">{avatarLetter}</div>
+                  <div>
+                    <div className="admin-name">{displayName}</div>
+                    <div className="admin-role">مدير النظام</div>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
@@ -120,49 +142,68 @@ export default function Users() {
         
         return teamIds.map(teamId => {
           const teamLeadersForThisTeam = tls.filter(t => t.teamId === teamId);
-          const teamAgents = allAgents.filter(a => a.teamId === teamId);
           
-          // Combined stats for the whole team
-          const teamBookings = teamAgents.reduce((sum, a) => sum + getAgentStats(a.id).bookings, 0);
-          const teamTotal = teamAgents.reduce((sum, a) => sum + getAgentStats(a.id).total, 0);
-          const teamPct = (teamBookings / (TARGET_TL * teamLeadersForThisTeam.length)) * 100;
-          const teamColor = progressColor(teamPct);
+          // True team members for summary stats
+          const trueTeamMembers = users.filter(u => u.teamId === teamId && (u.role === 'agent' || u.role === 'team_leader'));
+          
+          // Cards to be displayed in the grid (with access controls)
+          const teamAgents = trueTeamMembers.filter(u => {
+            // Don't show the logged-in user their own card
+            if (u.id === currentUser.id) return false;
+            // If the logged-in user is Sara, she cannot see Hamza
+            if (currentUser.username === 'sara' && u.username === 'hamza') return false;
+            return true;
+          });
+          
+          const teamTotalLeads = trueTeamMembers.reduce((sum, a) => sum + getAgentStats(a.id).total, 0);
+          const teamTotalBookings = trueTeamMembers.reduce((sum, a) => sum + getAgentStats(a.id).bookings, 0);
 
           return (
             <div key={teamId} className="team-section">
               {/* Team Leaders header */}
-              <div className="tl-header">
-                <div className="tl-avatars-group" style={{ display: 'flex', gap: '-10px' }}>
-                  {teamLeadersForThisTeam.map(tl => (
-                    <div key={tl.id} className="tl-avatar-lg" style={{ border: '2px solid #1e1e2e' }}>{tl.name.charAt(0)}</div>
-                  ))}
+              <div className="tl-header" style={{ display: 'flex', flexWrap: 'wrap', gap: '20px', alignItems: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                  <div className="tl-avatars-group" style={{ display: 'flex', gap: '-10px' }}>
+                    {teamLeadersForThisTeam.map(tl => (
+                      <div key={tl.id} className="tl-avatar-lg" style={{ border: '2px solid #1e1e2e', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{tl.name.charAt(0)}</div>
+                    ))}
+                  </div>
+
+                  <div className="tl-header-info">
+                    <div className="tl-header-name">
+                      {teamLeadersForThisTeam.map(tl => tl.name).join(' & ')}
+                    </div>
+                    <span className="tl-role-tag" style={{ color: ROLE_LABELS.team_leader.color, background: ROLE_LABELS.team_leader.bg, borderColor: ROLE_LABELS.team_leader.border }}>
+                      {ROLE_LABELS.team_leader.icon} قادة الفريق
+                    </span>
+                  </div>
                 </div>
 
-                <div className="tl-header-info">
-                  <div className="tl-header-name">
-                    {teamLeadersForThisTeam.map(tl => tl.name).join(' & ')}
-                  </div>
-                  <span className="tl-role-tag" style={{ color: ROLE_LABELS.team_leader.color, background: ROLE_LABELS.team_leader.bg, borderColor: ROLE_LABELS.team_leader.border }}>
-                    {ROLE_LABELS.team_leader.icon} تيم ليدرز
-                  </span>
-                </div>
-
-                {/* Team progress */}
-                <div className="tl-progress-block">
-                  <div className="tl-prog-nums">
-                    <span style={{ color: teamColor, fontWeight: 900, fontSize: 26 }}>{teamBookings}</span>
-                    <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: 13 }}>/ {TARGET_TL * teamLeadersForThisTeam.length}</span>
-                  </div>
-                  <div className="tl-prog-bar-track">
-                    <div className="tl-prog-bar-fill" style={{ width: `${Math.min(teamPct, 100)}%`, background: teamColor }} />
-                  </div>
-                  <div className="tl-prog-pct" style={{ color: teamColor }}>{teamPct.toFixed(1)}% من هدف الفريق</div>
+                {/* Team progress per leader */}
+                <div className="tl-progress-container" style={{ display: 'flex', flexDirection: 'column', gap: '12px', flex: 1, minWidth: '280px' }}>
+                  {teamLeadersForThisTeam.map(tl => {
+                    const stats = getTeamLeaderStats(tl.id);
+                    const teamPct = stats.progress;
+                    const teamColor = progressColor(teamPct);
+                    return (
+                      <div key={tl.id} className="tl-progress-block" style={{ margin: 0, padding: '4px 0', display: 'block', width: '100%' }}>
+                        <div className="tl-prog-nums" style={{ display: 'flex', alignItems: 'baseline', gap: '6px', fontSize: '13px' }}>
+                          <span style={{ color: 'rgba(255,255,255,0.7)', fontWeight: 'bold' }}>{tl.name}</span>
+                          <span style={{ color: teamColor, fontWeight: 900, fontSize: '16px', marginRight: '6px' }}>{stats.bookings}</span>
+                          <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '11px' }}>/ {stats.target}</span>
+                          <span style={{ color: teamColor, fontSize: '11px', marginRight: 'auto' }}>{teamPct.toFixed(1)}%</span>
+                        </div>
+                        <div className="tl-prog-bar-track" style={{ height: '6px', marginTop: '4px', background: 'rgba(255,255,255,0.1)', borderRadius: '999px', overflow: 'hidden' }}>
+                          <div className="tl-prog-bar-fill" style={{ width: `${Math.min(teamPct, 100)}%`, background: teamColor, height: '100%' }} />
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
 
                 <div className="tl-mini-stats">
-                  <div className="tl-mini-stat"><span>{teamTotal}</span><span>عملاء</span></div>
-                  <div className="tl-mini-stat"><span style={{ color: teamColor }}>{teamBookings}</span><span>حجز</span></div>
-                  <div className="tl-mini-stat"><span>{TARGET_TL * teamLeadersForThisTeam.length}</span><span>هدف</span></div>
+                  <div className="tl-mini-stat"><span>{teamTotalLeads}</span><span>إجمالي العملاء</span></div>
+                  <div className="tl-mini-stat"><span>{teamTotalBookings}</span><span>حجز</span></div>
                 </div>
               </div>
 
@@ -175,19 +216,22 @@ export default function Users() {
 
                   return (
                     <div key={agent.id} className="agent-perf-card">
-                      {/* ... rest of agent card is same ... */}
                       <div className="apc-header">
                         <div className="apc-avatar">{agent.name.charAt(0)}</div>
                         <div className="apc-info">
                           <div className="apc-name">{agent.name}</div>
-                          <span className="apc-tag" style={{ color: ROLE_LABELS.agent.color, background: ROLE_LABELS.agent.bg, borderColor: ROLE_LABELS.agent.border }}>
-                            {ROLE_LABELS.agent.icon} إيجنت
+                          <span className="apc-tag" style={{
+                            color: ROLE_LABELS[agent.role]?.color || ROLE_LABELS.agent.color,
+                            background: ROLE_LABELS[agent.role]?.bg || ROLE_LABELS.agent.bg,
+                            borderColor: ROLE_LABELS[agent.role]?.border || ROLE_LABELS.agent.border
+                          }}>
+                            {ROLE_LABELS[agent.role]?.icon || ROLE_LABELS.agent.icon} {ROLE_LABELS[agent.role]?.label || ROLE_LABELS.agent.label}
                           </span>
                         </div>
                         <div className="apc-bookings" style={{ color: col }}>{s.bookings}</div>
                       </div>
                       <div className="apc-prog-label">
-                        <span>{s.bookings} حجز من {TARGET_AGENT}</span>
+                        <span>{s.bookings} حجز من {s.target || TARGET_AGENT}</span>
                         <span style={{ color: col, fontWeight: 700 }}>{pct}%</span>
                       </div>
                       <div className="apc-prog-track">
@@ -232,7 +276,7 @@ export default function Users() {
               <tbody>
                 {users.map(u => {
                   const r = ROLE_LABELS[u.role];
-                  const pass = u.role === 'admin' ? 'admin123' : u.role === 'team_leader' ? 'leader123' : 'agent123';
+                  const pass = u.password || (u.role === 'admin' ? 'admin123' : u.role === 'team_leader' ? 'leader123' : 'agent123');
                   return (
                     <tr key={u.id}>
                       <td style={{ fontWeight: 700, color: 'white' }}>{u.name}</td>
@@ -242,7 +286,7 @@ export default function Users() {
                         </span>
                       </td>
                       <td><code className="cred-code">{u.username}</code></td>
-                      <td><code className="cred-code">••••••••</code></td>
+                      <td title={`كلمة المرور: ${pass}`} style={{ cursor: 'help' }}><code className="cred-code">••••••••</code></td>
                     </tr>
                   );
                 })}
