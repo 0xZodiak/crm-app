@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, LineChart, Line, Legend
@@ -7,6 +7,7 @@ import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { collection, doc, setDoc } from 'firebase/firestore';
 import { db } from '../firebase';
+import { apiService } from '../services/api';
 import './Dashboard.css';
 
 const COLORS = ['#6366f1', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
@@ -111,6 +112,21 @@ export default function Dashboard() {
     }
   };
 
+  const [backupLoading, setBackupLoading] = useState(false);
+
+  const handleServerBackup = async () => {
+    setBackupLoading(true);
+    try {
+      const res = await apiService.triggerBackup();
+      alert(`✅ تم إنشاء النسخة الاحتياطية بنجاح على الخادم!\nاسم الملف: ${res.file}\nالعملاء: ${res.count.leads} | الرحلات: ${res.count.trips}`);
+    } catch (err) {
+      console.error(err);
+      alert('❌ فشل إنشاء نسخة احتياطية على الخادم: ' + err.message);
+    } finally {
+      setBackupLoading(false);
+    }
+  };
+
   const stats = useMemo(() => {
     let filteredLeads = leads;
     if (currentUser.role === 'team_leader') {
@@ -184,7 +200,7 @@ export default function Dashboard() {
   return (
     <div className="dashboard">
       {currentUser.role === 'admin' && (
-        <div className="dashboard-actions" style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: '8px' }}>
+        <div className="dashboard-actions" style={{ display: 'flex', justifyContent: 'flex-start', gap: '12px', marginBottom: '16px', flexWrap: 'wrap' }}>
           <button 
             className="close-month-btn" 
             onClick={handleCloseMonth}
@@ -214,6 +230,40 @@ export default function Dashboard() {
             }}
           >
             🔒 إغلاق الشهر وتأريش البيانات (Close Month)
+          </button>
+
+          <button 
+            className="backup-server-btn" 
+            onClick={handleServerBackup}
+            disabled={backupLoading}
+            style={{
+              background: 'linear-gradient(135deg, #6366f1, #4f46e5)',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              padding: '10px 20px',
+              fontSize: '14px',
+              fontWeight: '700',
+              fontFamily: 'Cairo, sans-serif',
+              cursor: 'pointer',
+              boxShadow: '0 4px 12px rgba(99, 102, 241, 0.2)',
+              transition: 'all 0.2s ease',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}
+            onMouseOver={(e) => {
+              if(!backupLoading) {
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 6px 16px rgba(99, 102, 241, 0.3)';
+              }
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 4px 12px rgba(99, 102, 241, 0.2)';
+            }}
+          >
+            💾 {backupLoading ? 'جاري النسخ الاحتياطي...' : 'إنشاء نسخة احتياطية آمنة (Server Backup)'}
           </button>
         </div>
       )}

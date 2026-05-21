@@ -91,13 +91,10 @@ export function AuthProvider({ children }) {
         }
       }
 
-      // 2. تحديث الاسم وكلمة المرور في Firestore
+      // 2. تحديث الاسم في Firestore (لا يتم تخزين كلمة المرور في قاعدة البيانات نهائياً من أجل الأمان!)
       const updateData = {};
       if (newName && newName.trim() !== currentUser.name) {
         updateData.name = newName.trim();
-      }
-      if (newPassword && newPassword.trim() !== '') {
-        updateData.password = newPassword.trim();
       }
 
       if (Object.keys(updateData).length > 0) {
@@ -105,7 +102,7 @@ export function AuthProvider({ children }) {
         setCurrentUser(prev => prev ? { ...prev, ...updateData } : null);
       }
 
-      // 3. تحديث كلمة المرور في Firebase Auth
+      // 3. تحديث كلمة المرور بشكل آمن في Firebase Auth فقط
       if (newPassword && newPassword.trim() !== '') {
         await updatePassword(user, newPassword.trim());
       }

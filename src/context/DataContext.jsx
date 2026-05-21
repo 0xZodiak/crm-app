@@ -66,6 +66,53 @@ export function DataProvider({ children }) {
     return () => { unsubLeads(); unsubTrips(); unsubUsers(); clearTimeout(fallback); };
   }, [currentUser]);
 
+  // ─── Trip helpers ─────────────────────────────────────────────────────────
+
+  const addTrip = async (trip) => {
+    const { id: _, ...data } = trip;
+    const dayDate = data.date.split('T')[0];
+    const tripId = `${dayDate}_${data.busType.replace(/\s/g, '_')}`;
+    await setDoc(doc(db, 'trips', tripId), { ...data, createdAt: serverTimestamp() }, { merge: true });
+    return tripId;
+  };
+
+  const updateTrip = async (id, updates) => {
+    const { id: _, ...data } = updates;
+    await updateDoc(doc(db, 'trips', id), data);
+  };
+
+  const deleteTrip = async (id) => {
+    const confirmed = leads.filter(l => l.tripId === id && l.status === 'مؤكد');
+    if (confirmed.length > 0) {
+      throw new Error(`لا يمكن حذف هذه الرحلة لوجود ${confirmed.length} حجوزات مؤكدة عليها. يجب إلغاء الحجوزات أولاً.`);
+    }
+    await deleteDoc(doc(db, 'trips', id));
+    // إلغاء ربط الـ leads غير المؤكدة
+    const others = leads.filter(l => l.tripId === id);
+    for (const l of others) {
+      await updateDoc(doc(db, 'leads', l.id), { tripId: null });
+    }
+  };
+
+  // ابحث عن رحلة بنفس اليوم والباص أو أنشئ واحدة جديدة
+  const findOrCreateTrip = async (fullDate, destination, busType = 'سياحي 49') => {
+    const dayDate = fullDate.split('T')[0];
+    const tripId = `${dayDate}_${busType.replace(/\s/g, '_')}`;
+
+    const newTrip = {
+      name:        `${destination} - ${dayDate}`,
+      date:        `${dayDate}T00:00`,
+      destination: busType === 'VIP 30' ? 'مكة' : (destination || 'مكة'),
+      busType,
+      status:      'Upcoming',
+      duration:    3,
+      autoComplete: true,
+      createdAt:   serverTimestamp(),
+    };
+    await setDoc(doc(db, 'trips', tripId), newTrip, { merge: true });
+    return tripId;
+  };
+
   // ─── Automations: Trip Completion & Reminders ────────────────────────────
   const leadsRef = useRef(leads);
   const tripsRef = useRef(trips);
@@ -176,52 +223,7 @@ export function DataProvider({ children }) {
     return () => clearInterval(timer);
   }, [isLoading]);
 
-  // ─── Trip helpers ─────────────────────────────────────────────────────────
 
-  const addTrip = async (trip) => {
-    const { id: _, ...data } = trip;
-    const dayDate = data.date.split('T')[0];
-    const tripId = `${dayDate}_${data.busType.replace(/\s/g, '_')}`;
-    await setDoc(doc(db, 'trips', tripId), { ...data, createdAt: serverTimestamp() }, { merge: true });
-    return tripId;
-  };
-
-  const updateTrip = async (id, updates) => {
-    const { id: _, ...data } = updates;
-    await updateDoc(doc(db, 'trips', id), data);
-  };
-
-  const deleteTrip = async (id) => {
-    const confirmed = leads.filter(l => l.tripId === id && l.status === 'مؤكد');
-    if (confirmed.length > 0) {
-      throw new Error(`لا يمكن حذف هذه الرحلة لوجود ${confirmed.length} حجوزات مؤكدة عليها. يجب إلغاء الحجوزات أولاً.`);
-    }
-    await deleteDoc(doc(db, 'trips', id));
-    // إلغاء ربط الـ leads غير المؤكدة
-    const others = leads.filter(l => l.tripId === id);
-    for (const l of others) {
-      await updateDoc(doc(db, 'leads', l.id), { tripId: null });
-    }
-  };
-
-  // ابحث عن رحلة بنفس اليوم والباص أو أنشئ واحدة جديدة
-  const findOrCreateTrip = async (fullDate, destination, busType = 'سياحي 49') => {
-    const dayDate = fullDate.split('T')[0];
-    const tripId = `${dayDate}_${busType.replace(/\s/g, '_')}`;
-
-    const newTrip = {
-      name:        `${destination} - ${dayDate}`,
-      date:        `${dayDate}T00:00`,
-      destination: busType === 'VIP 30' ? 'مكة' : (destination || 'مكة'),
-      busType,
-      status:      'Upcoming',
-      duration:    3,
-      autoComplete: true,
-      createdAt:   serverTimestamp(),
-    };
-    await setDoc(doc(db, 'trips', tripId), newTrip, { merge: true });
-    return tripId;
-  };
 
   // ─── Lead helpers ─────────────────────────────────────────────────────────
 

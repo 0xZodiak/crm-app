@@ -258,43 +258,6 @@ export default function Users() {
           );
         });
       })()}
-
-      {/* ── Login credentials guide (Admins only) ─────────────────── */}
-      {isAdmin && (
-        <div className="creds-guide">
-          <h3 className="section-title">🔑 بيانات تسجيل الدخول</h3>
-          <div className="creds-table-wrap">
-            <table className="creds-table">
-              <thead>
-                <tr>
-                  <th>الاسم</th>
-                  <th>الدور</th>
-                  <th>اسم المستخدم</th>
-                  <th>كلمة المرور</th>
-                </tr>
-              </thead>
-              <tbody>
-                {users.map(u => {
-                  const r = ROLE_LABELS[u.role];
-                  const pass = u.password || (u.role === 'admin' ? 'admin123' : u.role === 'team_leader' ? 'leader123' : 'agent123');
-                  return (
-                    <tr key={u.id}>
-                      <td style={{ fontWeight: 700, color: 'white' }}>{u.name}</td>
-                      <td>
-                        <span className="role-tag" style={{ background: r.bg, borderColor: r.border, color: r.color }}>
-                          {r.icon} {r.label}
-                        </span>
-                      </td>
-                      <td><code className="cred-code">{u.username}</code></td>
-                      <td title={`كلمة المرور: ${pass}`} style={{ cursor: 'help' }}><code className="cred-code">••••••••</code></td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
